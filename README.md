@@ -1,9 +1,12 @@
-dbind is a data binding package for Dojo that provides straightforward binding of data to
+dbind is a functional reactive data binding package that provides straightforward binding of data to
 components like form inputs, validation connectors, and more. The dbind framework 
 is designed to help you create organized, well-structured, layered applications, facilitating
 a clean separation between a data model with validation logic and presentation elements.
-It is also intended to be compatible with bindr, giving you the full capabilities of the
+It is also intended to be compatible with Dojo and bindr, giving you the full capabilities of the
 bindr reactive data binding language with Dojo and Dijit widgets. 
+
+Note that not all of the features described here are implemented and/or tested, this
+is a work in progress.
 
 # Getting Started
 
@@ -64,6 +67,68 @@ be updated with error message. This makes it easy to build coherent, manageable
 validated forms. The validation layer is distinct from the UI layer, and they can easily 
 be wired together for responsive validated forms and UIs.
 
+## Transformations
+
+We can also bind to functions to create a transformation for our binding. The function
+will be called with a value to convert, allowing us to continuously apply transformation
+to a source object. For example, we could create a functional transformation:
+
+	function double(x){
+		return x * 2;
+	}
+	var doubledValue = bind(double).to(sourceValue);
+
+Now doubledValue will contain the value equal to twice the value of sourceValue. This
+will remain true even as sourceValue varies in the future, doubleValue will continually
+stay in sync.
+
+We can also bind a transformation function to multiple source objects:
+
+	function multiply(x, y){
+		return x * y;
+	}
+	var productValue = bind(double).to([sourceValueA, sourceValueB]);
+
+# dbind Interfaces
+
+dbind relies on several interfaces for connecting components. You can interact with these objects
+using the following API, or you can create your own implementations of the APIs. The bind() function 
+returns bindable objects. Bindable objects have the follow method:  
+
+* to(source) - This binds this object to the provided source object. Any changes in the
+source object will be propagated to the bindable target object. We speak of changes coming
+from the source object as traveling *up* to the target. The target component may be
+UI component that can support editing, sending requested changes from the user *down*
+to the source.
+
+* is(value) - This is called to change the value of the target object from a downstream
+source.
+
+The source object should be a reactive object. The bind() function generally returns
+objects that are also reactive. A reactive object represents a value that may change
+over time. The reactive object has a value at any given point in time, and may change
+to different values over time. It has the following methods:
+
+* then(callback) - This is called to get the value of the source object, both now and in the 
+future. A function should be provided, and will be called with the current value of the
+source object, and called again each time it changes in the future. It is worth noting
+that a source object that is constant (value doesn't change) is the same as a promise,
+and can be provided to consumers that expect a promise.
+ 
+* put(value) - This is called to change the value of the source object from an upstream
+target component. This may be rejected.
+This method may be omitted if the source object can't be modified by upstream components.
+
+Source objects may also be mappable; they can have properties. This is provided through
+the following methods:
+
+* get(property) - Returns a reactive object for the given property
+
+* get(property, callback) - Shorthand for get(property).then(callback).
+
+* set(property, value) - Shorthand for get(property).put(value).
+
 # Composition of Binding-Driven Components
 
 TODO
+

@@ -30,10 +30,10 @@ define([], function(){
 	Binding.prototype = {
 		then: function(callback){
 			(this.callbacks || (this.callbacks = [])).push(callback); 
-			callback(this.getValue());
+			this.getValue(callback);
 		},
-		getValue: function(){
-			return this.value;
+		getValue: function(callback){
+			callback(this.value);
 		},
 		get: function(key, callback){
 			var child = this['_' + key] || (this.source ?
@@ -129,7 +129,11 @@ define([], function(){
 		}else if(element.tagName == "INPUT"){
 			element.onchange = function(){
 				var value = element.value;
-				source.put(typeof source.getValue() == "number" ? +value : value);
+				var oldValue;
+				source.getValue(function(value){
+					oldValue = value;
+				});
+				source.put(typeof oldValue == "number" ? +value : value);
 			};
 		}
 		return this;
@@ -148,13 +152,34 @@ define([], function(){
 			callback(element.innerText);
 		}
 	};
+	function ArrayBinding(){
+		Binding.apply(this, arguments);
+	}
+	ArrayBinding.prototype = new Binding({});
+	ArrayBinding.prototype.getValue = function(callback){
+		var currentValues = [],
+			updates = 0;
+			length = this.value.length;
+		// watch all the items, and return a resulting array whenever an item is updated
+		for(var i = 0; i < length; i++){
+			(function(i, source){
+				source.then(function(value){
+					currentValues[i] = value;
+					updates++;
+					if(updates >= length){
+						callback(currentValues);
+					}
+				});
+			})(i, this.value[i]);
+		}
+	}
 	function PropertyBinding(object, name){
 		this.object = object;
 		this.name = name;
 	}
 	PropertyBinding.prototype = new Binding;
-	PropertyBinding.prototype.getValue = function(){
-		return this.object[this.name];
+	PropertyBinding.prototype.getValue = function(callback){
+		callback(this.object[this.name]);
 	};
 	PropertyBinding.prototype.put = function(value){
 		this.object[this.name] = value;
@@ -169,7 +194,7 @@ define([], function(){
 			if(callback){
 				var func = this.func;
 				return this.source.then(function(value){
-					callback(func(value));
+					callback(value.slice ? func.apply(this, value) : func(value));
 				});
 			}
 		},
@@ -198,7 +223,9 @@ define([], function(){
 						new ElementBinding(object) :
 						typeof object == "function" ?
 							new FunctionBinding(object) :
-				 			new Binding(object))
+							object instanceof Array ?
+								new ArrayBinding(object) :
+				 				new Binding(object))
 			: new Binding(object);
 	}
 	function bind(to){
@@ -206,8 +233,13 @@ define([], function(){
 		to = convertToBindable(to);
 	
 		for(var i = 1; i < arguments.length; i++){
-			var arg = convertToBindable(arguments[i]);
-			to.to(arg);
+			var arg = arguments[i];
+			if(typeof arg == "object" || typeof arg == "function"){
+				arg = convertToBindable(arguments[i]);
+				to.to(arg);
+			}else{
+				to = to.get(arg);
+			}
 		}
 		return to;
 	};

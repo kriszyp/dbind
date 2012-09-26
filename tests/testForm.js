@@ -32,8 +32,8 @@ define(['dbind/bind', 'dbind/Validator', 'put-selector/put'], function(bind, Val
 		bind(put(quantityRow, 'span.error-message'), quantity.get('error'));
 		bind(put(form, 'div label'), quantity.get("title"))
 		bind(put(form, 'div span'), quantity);*/
-		bind(put(form, 'div label', 'Total Price: ', '< span'), bind(function(quantity){
-			return "$" + quantity * 5;
-		}, quantity));
+		bind(put(form, 'div label', 'Total Price: ', '< span'), bind(function(quantity, price){
+			return "$" + quantity * price;
+		}).to([quantity, bind(myObject, "price")]));
 	}
 });

@@ -127,13 +127,16 @@ define([], function(){
 				}
 			}
 		}else if(element.tagName == "INPUT"){
+			var oldValue, gotOldValue;
 			element.onchange = function(){
+				if(!gotOldValue){
+					gotOldValue = true;
+					source.getValue(function(value){
+						oldValue = value;
+					});
+				}
 				var value = element.value;
-				var oldValue;
-				source.getValue(function(value){
-					oldValue = value;
-				});
-				source.put(typeof oldValue == "number" ? +value : value);
+				source.put(typeof oldValue == "number" && !isNaN(value) ? +value : value);
 			};
 		}
 		return this;

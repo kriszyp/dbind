@@ -43,30 +43,6 @@ For example, we could bind a Dijit TextBox to myProperty as well:
 		var textBox = new TextBox({}, 'textbox');
 		bind(textBox, myProperty);
 
-# Validation
-
-With dbind, we can do more than bind data to elements, we can also bind simple
-data objects to validation layers to compose more sophisticated data models, that can
-then be bound to UI elements. To bind to a validator, first we create a validator, giving
-it a validation definition (based on JSON Schema), and then we bind it to a property or
-object: 
-
-	var myProperty = bind(new Validator({type:"number", maximum: 20, minimum: 10})).
-		to(myObject, 'propertyName');  
-
-And now when a user enters a value that is not a number or doesn't fall in the given
-range it will be rejected.
-
-The validator also gives us access to the error message so the UI can properly display
-information to the user on why the input is invalid:
-
-	bind(errorMessageElement).to(myProperty, 'error');
-
-Any time an error occurs in validation, the `errorMessageElement` will automatically
-be updated with error message. This makes it easy to build coherent, manageable 
-validated forms. The validation layer is distinct from the UI layer, and they can easily 
-be wired together for responsive validated forms and UIs.
-
 ## Transformations
 
 We can also bind to functions to create a transformation for our binding. The function
@@ -89,14 +65,43 @@ We can also bind a transformation function to multiple source objects:
 	}
 	var productValue = bind(double).to([sourceValueA, sourceValueB]);
 
+# Validation
+
+With dbind, we can do more than bind data to elements, we can also bind simple
+data objects to validation layers to compose more sophisticated data models, that can
+then be bound to UI elements. To bind to a validator, first we create a validator, giving
+it a validation definition (based on JSON Schema), and then we bind it to a property or
+object: 
+	require(['dbind/bind', 'dbind/Validator'], function(bind, Validator){
+		// create a validator and bind it to a property of myObject 
+		var myProperty = bind(new Validator({type:"number", maximum: 20, minimum: 10})).
+			to(myObject, 'propertyName');
+		// now we can bind the validated property to an element
+		bind(anInputElement).to(myProperty); 
+
+And now when a user enters a value that is not a number or doesn't fall in the given
+range it will be rejected.
+
+The validator also gives us access to the error message so the UI can properly display
+information to the user on why the input is invalid:
+
+	bind(errorMessageElement).to(myProperty, 'error');
+
+Any time an error occurs in validation, the `errorMessageElement` will automatically
+be updated with error message. This makes it easy to build coherent, manageable 
+validated forms. The validation layer is distinct from the UI layer, and they can easily 
+be wired together for responsive validated forms and UIs.
+
 # dbind Interfaces
 
 dbind relies on several interfaces for connecting components. You can interact with these objects
 using the following API, or you can create your own implementations of the APIs. The bind() function 
 returns bindable objects. Bindable objects have the follow method:  
 
-* to(source) - This binds this object to the provided source object. Any changes in the
-source object will be propagated to the bindable target object. We speak of changes coming
+* to(source, property?) - This binds this object to the provided source object. Any changes in the
+source object will be propagated to the bindable target object.  If a property argument
+is provided, the target object will be bound to the property of the source object. We speak 
+of changes coming
 from the source object as traveling *up* to the target. The target component may be
 UI component that can support editing, sending requested changes from the user *down*
 to the source.
@@ -122,7 +127,7 @@ This method may be omitted if the source object can't be modified by upstream co
 Source objects may also be mappable; they can have properties. This is provided through
 the following methods:
 
-* get(property) - Returns a reactive object for the given property
+* get(property) - Returns a reactive object for the given property.
 
 * get(property, callback) - Shorthand for get(property).then(callback).
 

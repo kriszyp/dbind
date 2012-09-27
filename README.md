@@ -41,7 +41,7 @@ For example, we could bind a Dijit TextBox to myProperty as well:
 
 	require(['dijit/form/TextBox', 'dbind/bind'], function(TextBox){
 		var textBox = new TextBox({}, 'textbox');
-		bind(textBox, myProperty);
+		bind(textBox).to(myProperty);
 
 ## Transformations
 
@@ -63,7 +63,7 @@ We can also bind a transformation function to multiple source objects:
 	function multiply(x, y){
 		return x * y;
 	}
-	var productValue = bind(double).to([sourceValueA, sourceValueB]);
+	var productValue = bind(multiply).to([sourceValueA, sourceValueB]);
 
 # Validation
 

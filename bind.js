@@ -1,26 +1,4 @@
 define([], function(){
-	/*function StatefulBinding(stateful){
-		this.stateful = stateful;
-		stateful._binding = this;
-	}
-	StatefulBinding.prototype = {
-		then: function(callback){
-			callback();
-		},
-		get: function(key, callback){
-			if(!callback){
-				if(key.call){
-					key(this.stateful.get('value'));
-				}else{
-					return this.stateful.get(key);
-				}
-			}else{
-				callback(this.stateful.get(key));
-			}
-		},
-		put: function(){},
-		is: function(){}
-	};*/
 	function Binding(value){
 		this.value= value;
 		if(value){
@@ -68,8 +46,11 @@ define([], function(){
 					callback(i, source.get(i));
 				}			}
 		},
-		to: function(source){
+		to: function(source, property){
 			source = convertToBindable(source);
+			if(property){
+				source = source.get(property);
+			}
 			var self = this;
 			this.source = source;
 			source.then(function(value){
@@ -95,6 +76,26 @@ define([], function(){
 			});
 			return this;
 		}
+	};
+
+	function StatefulBinding(stateful){
+		this.stateful = stateful;
+		stateful._binding = this;
+	}
+	StatefulBinding.prototype = new Binding({}); 
+	StatefulBinding.prototype.to = function(source){
+		Binding.prototype.to.apply(this, arguments);
+		source = this.source;
+		var stateful = this.stateful;
+		source.then(function(value){
+			stateful.set('value', value);
+		});
+		stateful.watch('value', function(property, oldValue, value){
+			if(oldValue !== value){
+				source.put(value);
+			}
+		});
+		return this;
 	};
 	function ElementBinding(element, container){
 		this.element= element;

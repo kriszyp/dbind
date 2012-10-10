@@ -1,6 +1,6 @@
 define(['dbind/bind', 'dbind/Validator', 'put-selector/put'], function(bind, Validator, put){
 	var get = bind.get;
-	myObject = {quantity: 3, price: 5, discounted: true, color: "red", pattern: "striped"};
+	myObject = {quantity: 3, price: 5, discounted: true, color: "red", pattern: "solid"};
 	return function(form){
 		// TODO: put this in a model module
 		var quantity = bind(
@@ -27,21 +27,22 @@ define(['dbind/bind', 'dbind/Validator', 'put-selector/put'], function(bind, Val
 		put(quantityRow, quantityTextBox);
 		bind(quantityTextBox).to(quantity);
 		
-		bind(put(form, "div", "Price", "input[type=text]")).to(myObject, "price");
+		put(form, "div", "Price", "input[type=text]", {name: "price"});
 		
-		bind(put(form, "div", "Discounted", "input[type=checkbox]")).to(myObject, "discounted");
+		put(form, "div", "Discounted", "input[type=checkbox]", {name: "discounted"});
 		
-		var patternSelect = put(form, "div", "Pattern", "select");
-		put(patternSelect, "option[value=striped]", "Striped");
-		put(patternSelect, "option[value=solid]", "Solid");
-		bind(patternSelect).to(myObject, "pattern");
+		var patternSelect = put(form, "div", "Pattern", "select[name=pattern]");
+		put(patternSelect, "option[value=[striped]", "Striped");
+		put(patternSelect, "option[value=[solid]", "Solid");
 		
 		var colorDiv = put(form, "div", "Color");
-		var colorProperty = bind(myObject, "color");
-		bind(put(colorDiv, "div", "Red", "input[type=radio][value=red]")).to(colorProperty);
-		bind(put(colorDiv, "div", "Green", "input[type=radio][value=green]")).to(colorProperty);
-		bind(put(colorDiv, "div", "Blue", "input[type=radio][value=blue]")).to(colorProperty);
+		put(colorDiv, "div", "Red", "input[type=radio][value=red]", {name: "color"});
+		put(colorDiv, "div", "Green", "input[type=radio][value=green]", {name: "color"});
+		put(colorDiv, "div", "Blue", "input[type=radio][value=blue]", {name: "color"});
 
+		// now bind the form to the object, this will bind the elements to the properties of the object
+		bind(form, myObject);
+		
 		bind(put(form, 'div label', 'Total Price: ', '< span'), bind(function(quantity, price, discounted){
 			return "$" + quantity * price * (discounted ? 0.9 : 1);
 		}).to([quantity, bind(myObject, "price"), bind(myObject, "discounted")]));

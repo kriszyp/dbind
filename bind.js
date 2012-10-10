@@ -1,4 +1,5 @@
 define([], function(){
+	// A basic binding to value, our base class
 	function Binding(value){
 		this.value= value;
 		if(value){
@@ -7,6 +8,7 @@ define([], function(){
 	}
 	Binding.prototype = {
 		then: function(callback){
+			// get the value of this binding, notifying the callback of changes
 			(this.callbacks || (this.callbacks = [])).push(callback); 
 			this.getValue(callback);
 		},
@@ -77,7 +79,7 @@ define([], function(){
 			return this;
 		}
 	};
-
+	// StatefulBinding is used for binding to Stateful objects, particularly Diji widgets
 	function StatefulBinding(stateful){
 		this.stateful = stateful;
 		stateful._binding = this;
@@ -106,29 +108,42 @@ define([], function(){
 		return new ElementBinding(element, true);
 	}
 	ElementBinding.prototype = new Binding({});
+	var checkable = {radio: 1, checkbox: 1};
 	ElementBinding.prototype.is = function(value){
-		if(this.container || this.element.tagName == "FORM"){
+		var element = this.element;
+		if(this.container || element.tagName == "FORM"){
 			return Binding.prototype.is.call(this, value);
 		};
-		if("value" in this.element){
-			this.element.value = value || "";
+		if("value" in element){
+			if(element.type == "radio"){
+				element.checked = element.value == value;
+			}else if(element.type == "checkbox"){
+				element.checked = value;
+			}else{
+				element.value = value || "";
+			}
 		}else{
-			this.element.innerText = value || "";
+			element.innerText = value || "";
 		}
 	};
 	ElementBinding.prototype.to = function(source){
-		Binding.prototype.to.call(this, source);
+		Binding.prototype.to.apply(this, arguments);
+		source = this.source;
 		var element = this.element;
 		if(element.tagName == "FORM"){
-			var inputs = element.getElementsByTagName("input");
-			for(var i = 0; i < inputs.length; i++){
-				var input = inputs[i];
-				if(input.name){
-					bind(input, this.get(input.name));
+			function findInputs(tag){
+				var inputs = element.getElementsByTagName(tag);
+				for(var i = 0; i < inputs.length; i++){
+					var input = inputs[i];
+					if(input.name){
+						bind(input, this.get(input.name));
+					}
 				}
 			}
-		}else if(element.tagName == "INPUT"){
-			var oldValue, gotOldValue;
+			findInputs("input");
+			findInputs("select");
+		}else if(element.tagName == "INPUT" || element.tagName == "SELECT"){
+			var value, oldValue, gotOldValue;
 			element.onchange = function(){
 				if(!gotOldValue){
 					gotOldValue = true;
@@ -136,7 +151,15 @@ define([], function(){
 						oldValue = value;
 					});
 				}
-				var value = element.value;
+				if(element.type == "radio"){
+					if(element.checked){
+						value = element.value;
+					}else{
+						return; // not checked, don't do anything
+					}
+				}else{
+					value = element.type == "checkbox" ? element.checked : element.value;
+				}
 				source.put(typeof oldValue == "number" && !isNaN(value) ? +value : value);
 			};
 		}
@@ -210,7 +233,7 @@ define([], function(){
 		},
 		is: function(){},
 		to: function(source){
-			source = convertToBindable(source);
+			source = bind.apply(this, arguments);
 			this.source = source;
 			return this;
 		},

@@ -72,6 +72,7 @@ data objects to validation layers to compose more sophisticated data models, tha
 then be bound to UI elements. To bind to a validator, first we create a validator, giving
 it a validation definition (based on JSON Schema), and then we bind it to a property or
 object: 
+
 	require(['dbind/bind', 'dbind/Validator'], function(bind, Validator){
 		// create a validator and bind it to a property of myObject 
 		var myProperty = bind(new Validator({type:"number", maximum: 20, minimum: 10})).

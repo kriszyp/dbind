@@ -18,13 +18,13 @@ object or property you want to bind to:
 		bind(anInputElement).to(myObject, "propertyName");
 	});
 
-And just like that we have a two-binding. The value from the object will be provided to the
-input. Any changes to the input will cause the object to be modified. We could even
+And just like that we have a two-way binding. The value from the object's property will be provided to the
+input. Any changes to the input will cause the object's property to be modified. We could even
 bind another element to this property to easily see the binding in action.
 
 	bind(myDiv).to(myObject, 'propertyName');
 
-And the value of the property would be put in the div, and updated anytime the input
+And the value of the property would be put in the div, and updated any time the input
 was changed.
 
 We can also create a property binding that can encapsulate a single property, and 
@@ -33,6 +33,17 @@ be directly bound to components:
 	var myProperty = bind(myObject, 'propertyName');
 	// now we can bind components to this property
 	bind(anInputElement).to(myProperty);
+
+We can bind object properties to inputs, where the property value is synchronized with
+the input's value, and container elements like divs, where the property value is outputted
+to the element's inner text.
+
+In addition we can also bind an object to a form. In this case, dbind will search through
+the form inputs and bind each one to the object's properties based on the input's "name" attribute.
+If you have a form that you wish to create with HTML, this makes it very easy to bind an object to it 
+without directly referencing each input: 
+
+	bind(myForm).to(myObject);
 
 ## Dijit Components
 

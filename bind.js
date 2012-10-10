@@ -16,6 +16,7 @@ define([], function(){
 			callback(this.value);
 		},
 		get: function(key, callback){
+			// use an existing child/property if it exists
 			var child = this['_' + key] || (this.source ?
 				this.source.get(key) :
 				(this['_' + key] = this.value && typeof this.value == "object" ? 
@@ -79,7 +80,7 @@ define([], function(){
 			return this;
 		}
 	};
-	// StatefulBinding is used for binding to Stateful objects, particularly Diji widgets
+	// StatefulBinding is used for binding to Stateful objects, particularly Dijit widgets
 	function StatefulBinding(stateful){
 		this.stateful = stateful;
 		stateful._binding = this;
@@ -99,6 +100,36 @@ define([], function(){
 		});
 		return this;
 	};
+	StatefulBinding.prototype.get = function(key, callback){
+		return this['_' + key] || (this['_' + key] = new StatefulPropertyBinding(this.stateful, key));
+	};
+
+	function StatefulPropertyBinding(stateful, name){
+		this.stateful = stateful;
+		this.name = name;
+	}
+	StatefulPropertyBinding.prototype = new Binding;
+	StatefulPropertyBinding.prototype.getValue = function(callback){
+		// get the value of this property
+		var stateful = this.stateful,
+			name = this.name,
+			binding = this;
+		// get the current value
+		callback(stateful.get(name));
+		// watch for changes
+		stateful.watch(name, function(name, oldValue, newValue){
+			Binding.prototype.is.call(binding, newValue);
+		});
+	};
+	StatefulPropertyBinding.prototype.is = function(value){
+		// don't go through setters, it is bubbling up through the source
+		this.stateful._changeAttrValue(this.name, value);
+	}
+	StatefulPropertyBinding.prototype.put = function(value){
+		// put a value, go through setter
+		this.stateful.set(this.name, value);
+	}
+
 	function ElementBinding(element, container){
 		this.element= element;
 		this.container = container;

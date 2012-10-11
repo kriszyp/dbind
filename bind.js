@@ -9,19 +9,35 @@ define([], function(){
 	Binding.prototype = {
 		then: function(callback){
 			// get the value of this binding, notifying the callback of changes
-			(this.callbacks || (this.callbacks = [])).push(callback); 
-			this.getValue(callback);
+			var callbacks= this.callbacks;
+			(callbacks || (this.callbacks = [])).push(callback);
+			if(callbacks){
+				if("value" in this){
+					callback(this.value);
+				}
+			}else{
+				var self = this;
+				callbacks = this.callbacks;
+				this.getValue(function(value){
+					self.value = value;
+					for(var i = 0; i < callbacks.length; i++){
+						callbacks[i](value);
+					}
+				});
+			}
 		},
 		getValue: function(callback){
-			callback(this.value);
+			if(this.hasOwnProperty("value")){
+				callback(this.value);
+			}
 		},
 		get: function(key, callback){
 			// use an existing child/property if it exists
-			var child = this['_' + key] || (this.source ?
-				this.source.get(key) :
-				(this['_' + key] = this.value && typeof this.value == "object" ? 
-					new PropertyBinding(this.value, key) :
-					new Binding()));
+			var value, child = this['_' + key] || 
+				(this['_' + key] = this.hasOwnProperty("value") && typeof this.value == "object" ?
+					(value = this.value[key]) && value.get ? new StatefulBinding(value) :
+						new PropertyBinding(this.value, key) :
+						new Binding());
 			if(callback){
 				return child.then(callback);
 			}
@@ -34,19 +50,26 @@ define([], function(){
 			this.is(value);
 		},
 		is: function(value){
-			this.value = value;
-			if(this.callbacks){
-				for(var i = 0; i < this.callbacks.length; i++){
-					this.callbacks[i](value);
+			if(value !== this.value){
+				if(typeof this.value != "object"){
+					this.value = value;
+				}else{
+					// TODO: iterate through the object
+				}
+				if(this.callbacks){
+					for(var i = 0; i < this.callbacks.length; i++){
+						this.callbacks[i](value);
+					}
 				}
 			}
 		},
 		keys: function(callback){
-			var source = this.source || this;
-			for(var i in source){
-				if(i.charAt(0) == '_'){
-					i = i.slice(1);
-					callback(i, source.get(i));
+			if(this.source){
+				this.source.keys(callback);
+			}
+			for(var i in this.value){
+				if(i.charAt(0) != '_'){
+					callback(i, this.get(i));
 				}			}
 		},
 		to: function(source, property){
@@ -103,6 +126,13 @@ define([], function(){
 	StatefulBinding.prototype.get = function(key, callback){
 		return this['_' + key] || (this['_' + key] = new StatefulPropertyBinding(this.stateful, key));
 	};
+	StatefulBinding.prototype.keys = function(callback){
+		for(var i in this.stateful){
+			if(i.charAt(0) != '_'){
+				callback(i, this.get(i));
+			}
+		}
+	};
 
 	function StatefulPropertyBinding(stateful, name){
 		this.stateful = stateful;
@@ -112,18 +142,20 @@ define([], function(){
 	StatefulPropertyBinding.prototype.getValue = function(callback){
 		// get the value of this property
 		var stateful = this.stateful,
-			name = this.name,
-			binding = this;
+			name = this.name;
 		// get the current value
 		callback(stateful.get(name));
 		// watch for changes
 		stateful.watch(name, function(name, oldValue, newValue){
-			Binding.prototype.is.call(binding, newValue);
+			if(oldValue !== newValue){
+				callback(newValue);
+			}
 		});
 	};
 	StatefulPropertyBinding.prototype.is = function(value){
 		// don't go through setters, it is bubbling up through the source
 		this.stateful._changeAttrValue(this.name, value);
+		//return Binding.prototype.is.call(this, value);
 	}
 	StatefulPropertyBinding.prototype.put = function(value){
 		// put a value, go through setter
@@ -156,32 +188,28 @@ define([], function(){
 		}else{
 			element.innerText = value || "";
 		}
+		this.oldValue = value;
 	};
 	ElementBinding.prototype.to = function(source){
 		Binding.prototype.to.apply(this, arguments);
 		source = this.source;
 		var element = this.element;
 		if(element.tagName == "FORM"){
+			var binding = this;
 			function findInputs(tag){
 				var inputs = element.getElementsByTagName(tag);
 				for(var i = 0; i < inputs.length; i++){
 					var input = inputs[i];
 					if(input.name){
-						bind(input, this.get(input.name));
+						bind(input, binding.get(input.name));
 					}
 				}
 			}
 			findInputs("input");
 			findInputs("select");
 		}else if(element.tagName == "INPUT" || element.tagName == "SELECT"){
-			var value, oldValue, gotOldValue;
+			var value, binding = this;
 			element.onchange = function(){
-				if(!gotOldValue){
-					gotOldValue = true;
-					source.getValue(function(value){
-						oldValue = value;
-					});
-				}
 				if(element.type == "radio"){
 					if(element.checked){
 						value = element.value;
@@ -191,7 +219,7 @@ define([], function(){
 				}else{
 					value = element.type == "checkbox" ? element.checked : element.value;
 				}
-				source.put(typeof oldValue == "number" && !isNaN(value) ? +value : value);
+				source.put(typeof binding.oldValue == "number" && !isNaN(value) ? +value : value);
 			};
 		}
 		return this;
@@ -334,5 +362,6 @@ define([], function(){
 	bind.Element = ElementBinding;
 	bind.Container = ContainerBinding;
 	bind.Binding = Binding;
+
 	return bind;
 });

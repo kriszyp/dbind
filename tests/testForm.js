@@ -18,7 +18,7 @@ define(['dbind/bind', 'dbind/Validator', 'put-selector/put'], function(bind, Val
 			// the main value is bound to the input
 			bind(put(mainElement, 'input[type=text]')).to(binding);
 			// any errors go after it
-			bind(put(mainElement, 'span.error-message')).to(binding.get('error'));
+			bind(put(mainElement, 'span.error-message')).to(binding, 'error');
 			return mainElement;
 		}
 		// create the form elements

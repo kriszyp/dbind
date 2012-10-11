@@ -1,4 +1,4 @@
-define(['dbind/bind', 'dojo/Stateful', 'dijit/form/TextBox'], function(bind, Stateful, TextBox){
+define(['dbind/bind', 'dojo/Stateful', 'dojo/dom-construct', 'dijit/form/TextBox'], function(bind, Stateful, domConstruct, TextBox){
         function Model(props) {
             var stateful = new Stateful(props),
                 first = bind(stateful, 'first'),
@@ -19,10 +19,11 @@ define(['dbind/bind', 'dojo/Stateful', 'dijit/form/TextBox'], function(bind, Sta
             last: 'last'
         });
 		console.log(model);
-        var viewModel = {
-            last: new TextBox().placeAt('content')
-        };
-        
+		var viewModel = {
+			first: new TextBox().placeAt('content'),
+			last: new TextBox().placeAt('content'),
+			fullName: domConstruct.create('div', null, 'content')
+		};        
         bind(viewModel).to(model);
 
         model.set("first", "John");

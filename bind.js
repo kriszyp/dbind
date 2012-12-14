@@ -189,6 +189,11 @@ define([], function(){
 		}
 		this.oldValue = value;
 	};
+	var inputLike = {
+		"INPUT":1,
+		"SELECT":1,
+		"TEXTAREA":1
+	};
 	ElementBinding.prototype.to = function(source){
 		Binding.prototype.to.apply(this, arguments);
 		source = this.source;
@@ -206,7 +211,7 @@ define([], function(){
 			}
 			findInputs("input");
 			findInputs("select");
-		}else if(element.tagName == "INPUT" || element.tagName == "SELECT"){
+		}else if(element.tagName in inputLike){
 			var value, binding = this;
 			element.onchange = function(){
 				if(element.type == "radio"){

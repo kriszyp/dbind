@@ -50,10 +50,13 @@ define([], function(){
 		},
 		is: function(value){
 			if(value !== this.value){
-				if(typeof this.value != "object"){
-					this.value = value;
-				}else{
-					// TODO: iterate through the object
+				this.value = value;
+				if(typeof this.value == "object"){
+					for(var i in value){
+						if(i.charAt(0) != '_'){
+							this.get(i).is(value[i]);
+						}
+					}
 				}
 				if(this.callbacks){
 					for(var i = 0; i < this.callbacks.length; i++){
@@ -212,8 +215,8 @@ define([], function(){
 			findInputs("input");
 			findInputs("select");
 		}else if(element.tagName in inputLike){
-			var value, binding = this;
-			element.onchange = function(){
+			var value, binding = this,
+				onchange = element.onchange = function(){
 				if(element.type == "radio"){
 					if(element.checked){
 						value = element.value;
@@ -225,6 +228,9 @@ define([], function(){
 				}
 				source.put(typeof binding.oldValue == "number" && !isNaN(value) ? +value : value);
 			};
+			if(element.getAttribute('data-continuous')){
+				element.onkeyup = onchange;
+			}
 		}
 		return this;
 	}
@@ -253,7 +259,7 @@ define([], function(){
 		// watch all the items, and return a resulting array whenever an item is updated
 		for(var i = 0; i < length; i++){
 			(function(i, source){
-				source.then(function(value){
+				when(source, function(value){
 					currentValues[i] = value;
 					updates++;
 					if(updates >= length){
@@ -366,6 +372,15 @@ define([], function(){
 	bind.Element = ElementBinding;
 	bind.Container = ContainerBinding;
 	bind.Binding = Binding;
+
+
+	function when(value, callback){
+		if(value && value.then){
+			return value.then(callback);
+		}
+		return callback(value);
+	}
+	bind.when = when;
 
 	return bind;
 });

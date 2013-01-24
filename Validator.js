@@ -1,4 +1,4 @@
-define(['json-schema/lib/validate', './bind'], function(validate, bind){
+define(['json-schema/validate', './bind'], function(validate, bind){
 	function ValidatorBinding(schema){
 		this.schema = schema;
 	}

@@ -3,9 +3,8 @@ define(['dbind/bind', 'dbind/Validator', 'put-selector/put'], function(bind, Val
 	myObject = {quantity: 3, price: 5, discounted: true, color: "red", pattern: "striped"};
 	return function(form){
 		// TODO: put this in a model module
-		var quantity = bind(
-				new Validator({type:"number", maximum: 20, minimum: 10})).to 
-					(get(myObject, 'quantity'));
+		var quantity = get(myObject, 'quantity').to(
+				new Validator({type:"number", maximum: 20, minimum: 10}));
 		
 		
 		quantity.get("title").is("Quantity");
@@ -14,36 +13,36 @@ define(['dbind/bind', 'dbind/Validator', 'put-selector/put'], function(bind, Val
 			var mainElement = put('div');
 			var binding = new bind.Container(mainElement);
 			// the label
-			bind(put(mainElement, 'label')).to(binding.get('title'));
+			binding.get('title').to(bind(put(mainElement, 'label')));
 			// the main value is bound to the input
-			bind(put(mainElement, 'input[type=text]')).to(binding);
+			binding.to(put(mainElement, 'input[type=text]'));
 			// any errors go after it
-			bind(put(mainElement, 'span.error-message')).to(binding, 'error');
+			binding.get('error').to(put(mainElement, 'span.error-message'));
 			return mainElement;
 		}
 		// create the form elements
 		var quantityRow = put(form, 'div');
 		var quantityTextBox = ValidationTextBox();
 		put(quantityRow, quantityTextBox);
-		bind(quantityTextBox).to(quantity);
+		quantity.to(quantityTextBox);
 		
-		bind(put(form, "div", "Price", "input[type=text]")).to(myObject, "price");
+		bind(myObject, "price").to(put(form, "div", "Price", "input[type=text]"));
 		
-		bind(put(form, "div", "Discounted", "input[type=checkbox]")).to(myObject, "discounted");
+		bind(myObject, "discounted").to(put(form, "div", "Discounted", "input[type=checkbox]"));
 		
 		var patternSelect = put(form, "div", "Pattern", "select");
 		put(patternSelect, "option[value=striped]", "Striped");
 		put(patternSelect, "option[value=solid]", "Solid");
-		bind(patternSelect).to(myObject, "pattern");
+		bind(myObject, "pattern").to(patternSelect);
 		
 		var colorDiv = put(form, "div", "Color");
 		var colorProperty = bind(myObject, "color");
-		bind(put(colorDiv, "div", "Red", "input[type=radio][value=red]")).to(colorProperty);
-		bind(put(colorDiv, "div", "Green", "input[type=radio][value=green]")).to(colorProperty);
-		bind(put(colorDiv, "div", "Blue", "input[type=radio][value=blue]")).to(colorProperty);
+		colorProperty.to(put(colorDiv, "div", "Red", "input[type=radio][value=red]"));
+		colorProperty.to(put(colorDiv, "div", "Green", "input[type=radio][value=green]"));
+		colorProperty.to(put(colorDiv, "div", "Blue", "input[type=radio][value=blue]"));
 
-		bind(put(form, 'div label', 'Total Price: ', '< span'), bind(function(quantity, price, discounted){
+		bind([quantity, bind(myObject, "price"), bind(myObject, "discounted")]).toArgs(function(quantity, price, discounted){
 			return "$" + quantity * price * (discounted ? 0.9 : 1);
-		}).to([quantity, bind(myObject, "price"), bind(myObject, "discounted")]));
+		}).to(put(form, 'div label', 'Total Price: ', '< span'));
 	}
 });

@@ -7,24 +7,67 @@ define([], function(){
 		}
 	}
 	Binding.prototype = {
-		then: function(callback){
+		to: function(callback){
 			// get the value of this binding, notifying the callback of changes
-			var callbacks= this.callbacks;
-			(callbacks || (this.callbacks = [])).push(callback);
-			if(callbacks){
-				if("value" in this){
-					callback(this.value);
-				}
-			}else{
-				var self = this;
-				callbacks = this.callbacks;
-				this.getValue(function(value){
-					self.value = value;
-					for(var i = 0; i < callbacks.length; i++){
-						callbacks[i](value);
+			if(typeof callback == "function"){
+				var toBindings= this.toBindings;
+				var resultBinding = new Binding();
+				resultBinding.func = callback;
+				(toBindings || (this.toBindings = [])).push(resultBinding);
+				if(toBindings){
+					if("value" in this){
+						resultBinding.is(this.value);
+						callback(this.value);
 					}
-				});
+				}else{
+					var self = this;
+					toBindings = this.toBindings;
+					this.getValue(function(value){
+						self.value = value;
+						for(var i = 0; i < toBindings.length; i++){
+							toBindings[i].is(toBindings[i].func(value));
+						}
+					});
+				}
+				return resultBinding;
+				// TODO: return a new binding
+			}else{
+				return callback && callback.from ? callback.from(this) : bind(callback).from(this); 
 			}
+		},
+		toArgs: function(callback){
+			return this.to(function(array){
+				var length = array.length;
+				var fulfilled = [], currentValues = [], updates = 0;
+				var outerCallback, functionResult;
+				// watch each of the items in the array
+				for(var i = 0; i < length; i++){
+					fulfilled[i] = false;
+					(function(i, source){
+						source.to(function(value){
+							currentValues[i] = value;
+							if(!fulfilled[i]){
+								fulfilled[i] = true;
+								updates++;
+							}
+							if(updates >= length){
+								functionResult = callback.apply(this, currentValues);
+								if(outerCallback){
+									outerCallback(functionResult);
+								}
+							}
+						});
+					})(i, array[i]);
+				}
+				return {
+					to: function(callback){
+						if(functionResult){
+							callback(functionResult);
+						}
+						outerCallback = callback;
+					}
+				}
+			});
 		},
 		getValue: function(callback){
 			if(this.hasOwnProperty("value")){
@@ -38,7 +81,7 @@ define([], function(){
 					(value = this.value[key]) && typeof value != "object" ? new PropertyBinding(this.value, key) :
 						convertToBindable(value) : new Binding());
 			if(callback){
-				return child.then(callback);
+				return child.to(callback);
 			}
 			return child;
 		},
@@ -48,19 +91,31 @@ define([], function(){
 			}
 			this.is(value);
 		},
+		set: function(key, value){
+			return this.get(key).put(value);
+		},
 		is: function(value){
 			if(value !== this.value){
 				this.value = value;
-				if(typeof this.value == "object"){
-					for(var i in value){
-						if(i.charAt(0) != '_'){
-							this.get(i).is(value[i]);
+				if(typeof value == "object"){
+					if(value.to){
+						var self = this;
+						value.to(function(value){
+							self.is(value)
+						});
+						return;
+					}else{
+						for(var i in value){
+							if(i.charAt(0) != '_'){
+								this.get(i).is(value[i]);
+							}
 						}
 					}
 				}
-				if(this.callbacks){
-					for(var i = 0; i < this.callbacks.length; i++){
-						this.callbacks[i](value);
+				var toBindings = this.toBindings;
+				if(toBindings){
+					for(var i = 0; i < toBindings.length; i++){
+						toBindings[i].is(toBindings[i].func(value));
 					}
 				}
 			}
@@ -74,14 +129,14 @@ define([], function(){
 					callback(i, this.get(i));
 				}			}
 		},
-		to: function(source, property){
+		from: function(source, property){
 			source = convertToBindable(source);
 			if(property){
 				source = source.get(property);
 			}
 			var self = this;
 			this.source = source;
-			source.then(function(value){
+			source.to(function(value){
 				self.is(value);
 			});
 			for(var i in this){
@@ -90,7 +145,7 @@ define([], function(){
 					var child = self.get(i);
 					var sourceChild = source.get(i);
 					if(child != sourceChild){
-						child.to(sourceChild);
+						child.from(sourceChild);
 					}
 				}
 			}
@@ -98,7 +153,7 @@ define([], function(){
 				if(!(('_' + i) in self)){
 					var child = self.get(i);
 					if(child != sourceChild){
-						child.to(sourceChild);
+						child.from(sourceChild);
 					}
 				}
 			});
@@ -111,11 +166,11 @@ define([], function(){
 		stateful._binding = this;
 	}
 	StatefulBinding.prototype = new Binding({}); 
-	StatefulBinding.prototype.to = function(source){
-		Binding.prototype.to.apply(this, arguments);
+	StatefulBinding.prototype.from = function(source){
+		Binding.prototype.from.apply(this, arguments);
 		source = this.source;
 		var stateful = this.stateful;
-		source.then(function(value){
+		source.from(function(value){
 			stateful.set('value', value);
 		});
 		stateful.watch('value', function(property, oldValue, value){
@@ -187,7 +242,19 @@ define([], function(){
 			}else{
 				element.value = value || "";
 			}
-		}else{
+		}else if(value && value.sort){
+			var each = this.each;
+			var renderItem = each ||
+			function(item){
+				var li = element.appendChild(document.createElement('li'));
+				li.appendChild(document.createTextNode(item));
+			};
+			// TODO: handle old IE?
+			value.forEach(renderItem);
+			value.observe && value.observe(function(object, from, to){
+				// TODO: handle changes
+			});
+		}else{			
 			element.innerText = value || "";
 		}
 		this.oldValue = value;
@@ -197,8 +264,8 @@ define([], function(){
 		"SELECT":1,
 		"TEXTAREA":1
 	};
-	ElementBinding.prototype.to = function(source){
-		Binding.prototype.to.apply(this, arguments);
+	ElementBinding.prototype.from = function(source){
+		Binding.prototype.from.apply(this, arguments);
 		source = this.source;
 		var element = this.element;
 		if(element.tagName == "FORM"){
@@ -234,7 +301,7 @@ define([], function(){
 		}
 		return this;
 	}
-	ElementBinding.prototype.then = function(callback){
+	ElementBinding.prototype.toOnce = function(callback){
 		var element = this.element;
 		if(this.container){
 			return Binding.prototype.then.call(this, callback);
@@ -281,33 +348,6 @@ define([], function(){
 		this.object[this.name] = value;
 		this.is(value);
 	}
-	function FunctionBinding(func, reverseFunc){
-		this.func = func;
-		this.reverseFunc = reverseFunc;
-	}
-	FunctionBinding.prototype = {
-		then: function(callback){
-			if(callback){
-				var func = this.func;
-				return this.source.then(function(value){
-					callback(value.slice ? func.apply(this, value) : func(value));
-				});
-			}
-		},
-		get: function(key){
-			return this[key] || (this[key] = new Binding('None'));
-		},
-		put: function(value){
-			this.source.put(this.reverseFunc(value));
-		},
-		is: function(){},
-		to: function(source){
-			source = bind.apply(this, arguments);
-			this.source = source;
-			return this;
-		},
-		keys: function(){}
-	} 
 	function convertToBindable(object){
 		return object ?
 			object._binding || 
@@ -319,8 +359,8 @@ define([], function(){
 						new ElementBinding(object) :
 						typeof object == "function" ?
 							new FunctionBinding(object) :
-							object instanceof Array ?
-								new ArrayBinding(object) :
+//							object instanceof Array ?
+	//							new ArrayBinding(object) :
 				 				new Binding(object))
 			: new Binding(object);
 	}
@@ -375,8 +415,8 @@ define([], function(){
 
 
 	function when(value, callback){
-		if(value && value.then){
-			return value.then(callback);
+		if(value && value.to){
+			return value.to(callback);
 		}
 		return callback(value);
 	}

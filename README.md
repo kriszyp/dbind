@@ -145,6 +145,19 @@ the following methods:
 
 * set(property, value) - Shorthand for get(property).put(value).
 
+Bindable objects have the following internal methods:
+
+* keys(callback) - Sends child bindables via the given callback function. It can delegate
+generating the list of keys to upstream source (if exists). The callback function has (key,
+child) interface.
+
+* getValue(callback) - Works as a "getter". Sends the current value via the given callback
+function.
+
+* setValue(value, callback?) - Works as a "setter". Sets given new value. It can cancel setting
+the new value, for cases like there is no change in value. If a callback function is given and the
+new value is set, the given callback function is called.
+
 # Composition of Binding-Driven Components
 
 TODO

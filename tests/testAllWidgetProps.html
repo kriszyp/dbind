@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Test dbind with widget with wildcard</title>
+		<style type="text/css">
+			@import "../../dojo/resources/dojo.css";
+			@import "../../dijit/themes/claro/claro.css";
+		</style>
+		<script type="text/javascript" src="../../dojo/dojo.js" 
+			data-dojo-config="async: 1"></script>
+		<script type="text/javascript">
+			require([
+				"../bind.js",
+				"dijit/Menu",
+				"dijit/MenuItem",
+				"dojo/domReady!"
+			], function(bind, Menu, MenuItem){
+				var data = bind({
+					cut: {
+						label: "C{u}t",
+						accelKey: "Ctrl+X",
+						iconClass: "dijitEditorIcon dijitEditorIconCut",
+						onClick: function(){
+							console.log("Not actualy cutting anything, just a test!");
+						}
+					},
+					copy: {
+						label: "{C}opy",
+						accelKey: "Ctrl+C",
+						iconClass: "dijitEditorIcon dijitEditorIconCopy",
+						onClick: function(){
+							console.log("Not actualy copying anything, just a test!");
+						}
+					},
+					paste: {
+						label: "{P}aste",
+						accelKey: "Ctrl+V",
+						iconClass: "dijitEditorIcon dijitEditorIconPaste",
+						onClick: function(){
+							console.log("Not actualy pasting anything, just a test!");
+						}
+					}
+				});
+
+				var menu = new Menu().placeAt(document.body),
+					cut,
+					copy,
+					paste;
+
+				menu.addChild(cut = new MenuItem());
+				menu.addChild(copy = new MenuItem());
+				menu.addChild(paste = new MenuItem());
+
+				bind(cut).to(data, "cut");
+				bind(copy).to(data, "copy");
+				bind(paste).to(data, "paste");
+			});
+		</script>
+	</head>
+	<body class="claro">
+		<h2>Dijit form bindings with wildcard</h2>
+	</body>
+</html>

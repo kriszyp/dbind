@@ -1,11 +1,9 @@
 define(['dbind/bind', 'dbind/Validator', 'put-selector/put'], function(bind, Validator, put){
-	var get = bind.get;
-	myObject = {quantity: 3, price: 5};
+	var myObject = {quantity: 3, price: 5};
 	return function(form){
 		// TODO: put this in a model module
 		var quantity = bind(
-				new Validator({type:"number", maximum: 20, minimum: 10})).to 
-					(myObject, 'quantity');
+				new Validator({type:"number", maximum: 20, minimum: 10})).to(myObject, "quantity");
 
 		var quantityRow = put(form, 'div');
 

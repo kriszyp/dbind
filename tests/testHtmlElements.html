@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Test dbind with a simple HTML form</title>
+		<style type="text/css">
+			@import "../../dojo/resources/dojo.css";
+			.yellow {
+				background-color: yellow;
+			}
+		</style>
+		<script type="text/javascript" src="../../dojo/dojo.js" 
+			data-dojo-config="async: true"></script>
+		<script type="text/javascript">
+			require(["../bind.js", "dojo/domReady!"], function(bind){
+				var containerDataBind = bind({
+					".collapsed": false,
+					".hidden": false
+				});
+				bind(document.getElementById("collapse")).to(containerDataBind, ".collapsed");
+				bind(document.getElementById("hide")).to(containerDataBind, ".hidden");
+				new bind.Container(document.getElementById("elements")).to(containerDataBind);
+				bind(document.getElementById("htmloutput")).get("innerHTML").to(document.getElementById("htmlinput"));
+				bind(document.getElementById("elements")).get(".yellow").to(document.getElementById("yellow"));
+				var dataBind = bind({
+					value: 0,
+					max: 100,
+					"[low]": 20,
+					"[high]": 80
+				});
+				bind(document.getElementById("meter")).to(dataBind);
+				bind(document.getElementById("progress")).to(dataBind);
+				setInterval(function(){
+					var valueBind = dataBind.get("value"),
+						maxBind = dataBind.get("max");
+					maxBind.getValue(function(max){
+						valueBind.getValue(function(value){
+							value = value < max ? ++value : 0;
+							valueBind.is(value);
+							if(value == 0){
+								maxBind.is(max == 100 ? 10 : 100);
+							}
+						});
+					});
+				}, 100);
+			});
+		</script>
+	</head>
+	<body>
+		<h2>HTML elements bindings</h2>
+		<label for="collapse">Collapse</label>
+		<input id="collapse" type="checkbox">
+		<label for="hide">Hide</label>
+		<input id="hide" type="checkbox">
+		<label for="yellow">Yellow</label>
+		<input id="yellow" type="checkbox">
+		<div style="border:solid blue 1px;">
+			<div id="elements">
+				<div>
+					<meter id="meter"></meter>
+					<progress id="progress"></progress>
+				</div>
+				<textarea id="htmlinput" style="width:400px;height:200px;"></textarea>
+				<div id="htmloutput"></div>
+			</div>
+		</div>
+	</body>
+</html>

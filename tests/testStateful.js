@@ -1,4 +1,4 @@
-define(['dbind/bind', 'dojo/Stateful', 'dojo/dom-construct', 'dijit/form/TextBox'], function(bind, Stateful, domConstruct, TextBox){
+define(['dbind/dijit', 'dojo/Stateful', 'dojo/dom-construct', 'dijit/form/TextBox'], function(bind, Stateful, domConstruct, TextBox){
         function Model(props) {
             var stateful = new Stateful(props),
                 first = bind(stateful, 'first'),

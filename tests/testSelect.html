@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>HTML select binding</title>
+		<style type="text/css">
+			@import "../../dojo/resources/dojo.css";
+		</style>
+		<script type="text/javascript" src="../../dojo/dojo.js" 
+			data-dojo-config="async: true"></script>
+		<script type="text/javascript">
+			require([
+				"dbind/foreach",
+				"dojox/mvc/StatefulArray",
+				"dojo/domReady!"
+			], function(bind, StatefulArray){
+				var viewModel = bind({
+					collection: new StatefulArray([
+						{value: "foo", innerText: "Foo"},
+						{value: "bar", innerText: "Bar"},
+					]),
+					value: "bar"
+				});
+				bind(document.getElementById("select")).to(viewModel, "value");
+				bind(document.getElementById("select")).foreach(viewModel.collection);
+				bind(document.getElementById("selected")).to(viewModel, "value");
+			});
+		</script>
+	</head>
+	<body>
+		<h2>HTML select bindings</h2>
+		<div>
+			<select id="select"></select>
+		</div>
+		<div>
+			<label for="selected">Selected:</label>
+			<span id="selected"></span>
+		</div>
+	</body>
+</html>

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"/>
+		<meta name="apple-mobile-web-app-capable" content="yes"/>
+		<title>Test mobile list</title>
+		<script type="text/javascript" src="../../dojox/mobile/deviceTheme.js"
+			data-dojo-config="mblThemeFiles: ['base', 'TabBar']"></script>
+		<style type="text/css">
+			@import "../../dojo/resources/dojo.css";
+		</style>
+		<script type="text/javascript" src="../../dojo/dojo.js" 
+			data-dojo-config="async: 1"></script>
+		<script type="text/javascript">
+			require([
+				"dbind/tests/testRepeatViewModel",
+				"dbind/dijit",
+				"dojo/aspect",
+				"dojo/on",
+				"dijit/registry",
+				"dojox/mobile/Heading",
+				"dojox/mobile/TabBar",
+				"dojox/mobile/TabBarButton",
+				"dojox/mobile/RoundRectList",
+				"dojox/mobile/ListItem",
+				"dojo/domReady!"
+			], function(viewModel, bind, aspect, on, registry, Heading, TabBar, TabBarButton, RoundRectList, ListItem){
+				aspect.around(ListItem.prototype, "defaultClickAction", function(origDefaultClickAction){
+					return function(){
+						// This app's _ItemBase/FilteredStatefulArray/RepeatContainer combination may end up with destroying _ItemBase upon clicking, before updating selection icon
+						if(!this._beingDestroyed){
+							origDefaultClickAction.apply(this, arguments);
+						}
+					};
+				});
+				var list = new RoundRectList({select: "multiple"}, document.getElementById("list"));
+				list.startup();
+				bind(list).use(bind.createChild, function(entry){
+						var item = new ListItem({}, document.createElement("li"));
+						bind(item, "label").to(entry, "title");
+						bind(item, "checked").to(entry, "finished");
+						bind(item, "uniqueId").to(entry, "id");
+						on(item.domNode, "dblclick", function(event){
+							viewModel.removeEntry.call(this, event, bind(registry.byNode(this)), bind(entry));
+						});
+						return item.domNode;
+					},
+					bind.insertedChild, function(element){
+						registry.byNode(element).startup();
+					},
+					bind.destroyChild, function(element){
+						for(var list = [element].concat([].slice.call(element.getElementsByTagName("*"), 0)), i = 0, l = list.length; i < l; ++i){
+							var w = registry.byNode(list[i]);
+							if((w || {})._binding){
+								w._binding.destroy();
+							}else if(list[i]._binding){
+								list[i]._binding.destroy();
+							}
+						}
+					},
+					bind.parent, viewModel
+				).foreach(viewModel.collection);
+				var heading = new Heading({label: "Test mobile list"}, document.createElement("div"));
+				document.body.insertBefore(heading.domNode, list.domNode);
+				var tabbar = new TabBar({barType: "segmentedControl"}),
+					allButton = new TabBarButton({}),
+					activeButton = new TabBarButton({filterMode: "active"}),
+					finishedButton = new TabBarButton({filterMode: "finished"});
+				bind(allButton, "label").to(viewModel, "allLabel");
+				bind(activeButton, "label").to(viewModel, "activeLabel");
+				bind(finishedButton, "label").to(viewModel, "finishedLabel");
+				bind(allButton, "selected").to(viewModel, "allSelected");
+				bind(activeButton, "selected").to(viewModel, "activeSelected");
+				bind(finishedButton, "selected").to(viewModel, "finishedSelected");
+				for(var a = [allButton, activeButton, finishedButton], i = 0, l = a.length; i < l; ++i){
+					on(a[i], "click", function(event){
+						viewModel.filter.call(this, event, bind(this), viewModel);
+					});
+				}
+				tabbar.addChild(allButton);
+				tabbar.addChild(activeButton);
+				tabbar.addChild(finishedButton);
+				heading.domNode.appendChild(tabbar.domNode);
+				heading.startup();
+				tabbar.startup();
+				allButton.startup();
+				activeButton.startup();
+				finishedButton.startup();
+				bind(document.getElementById("newtitle")).to(viewModel, "textToAdd");
+				on(document.getElementById("add"), "click", function(event){
+					viewModel.addEntry.call(this, event, bind(event.target), viewModel);
+				});
+				bind(list.domNode, ".collapsed").to(viewModel, "exists");
+			});
+		</script>
+	</head>
+	<body>
+		<ul id="list"></ul>
+		<div style="padding: 8px;">
+			<input id="newtitle" type="text">
+			<input id="add" type="button" value="Add">
+		</div>
+	</body>
+</html>

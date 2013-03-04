@@ -1,18 +1,16 @@
 define(['dbind/bind', 'dbind/Validator', 'put-selector/put'], function(bind, Validator, put){
-	var get = bind.get;
-	myObject = {quantity: 3, price: 5, discounted: true, color: "red", pattern: "striped"};
+	var myObject = {quantity: 3, price: 5, discounted: true, color: "red", pattern: "striped"};
 	return function(form){
 		// TODO: put this in a model module
 		var quantity = bind(
-				new Validator({type:"number", maximum: 20, minimum: 10})).to 
-					(get(myObject, 'quantity'));
+				new Validator({type:"number", maximum: 20, minimum: 10})).to(myObject, "quantity");
 		
 		
 		quantity.get("title").is("Quantity");
 		
 		function ValidationTextBox(){
 			var mainElement = put('div');
-			var binding = new bind.Container(mainElement);
+			var binding = bind(mainElement).use(bind.container);
 			// the label
 			bind(put(mainElement, 'label')).to(binding.get('title'));
 			// the main value is bound to the input

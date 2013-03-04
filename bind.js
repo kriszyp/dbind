@@ -1,336 +1,691 @@
-define([], function(){
-	// A basic binding to value, our base class
-	function Binding(value){
-		this.value= value;
-		if(value){
-			value._binding = this;
+define(["./Observable"], function(Observable){
+	var undef,
+		opts = {}.toString;
+
+	function isArray(it){
+		return typeof it == "array" || typeof it == "object" && it.splice;
+	}
+	isArray = Array.isArray || isArray;
+	function isFunction(it){
+		return opts.call(it) === "[object Function]";
+	}
+	function isPrimitiveLike(it){
+		return !isArray(it) && !isFunction(it) && typeof it != "object";
+	}
+	function on(node, event, callback){
+		var addEventListener = !!node.addEventListener;
+		node[addEventListener ? "addEventListener" : "attachEvent"]((addEventListener ? "" : "on") + event, callback, false);
+		var h = {
+			remove: function(){
+				h && node[addEventListener ? "removeEventListener" : "detachEvent"](event, callback, false);
+				return h = null;
+			}
+		};
+		return h;
+	}
+
+	function around(target, methodName, advice){
+		var original = target[methodName],
+			dispatcher = target[methodName] = function(){
+				if(advice){
+					advice.call(target, original, arguments);
+				}
+			};
+		dispatcher.reconnect = function(to){
+			if(original = to){
+				to.next = dispatcher;
+			}
+		};
+		if(original){
+			original.next = dispatcher;
 		}
+		return {
+			remove: function(){
+				var next = (dispatcher || {}).next;
+				if(next){
+					next.reconnect(original);
+				}else if(target[methodName] == dispatcher && (target[methodName] = original)){
+					original.next = next;
+				}
+				return target = advice = original = dispatcher = null;
+			}
+		};
+	}
+
+	function isContainer(element){
+		// Returns whether an element has a binding working as a container
+		return (element || {})._binding && (/^(body|form)$/i.test(element.tagName) || element._binding.using(bind.container));
+	}
+
+	function isUserChangeable(binding){
+		var element = binding.object,
+			name = binding.name,
+			tagName = element.tagName;
+		return !binding.name ? !isContainer(element) :
+			tagName == "TEXTAREA" ? /^(innerText|value)$/.test(name) :
+			tagName == "CHECKBOX" ? /^(checked|value)$/.test(name) :
+			/^(INPUT|SELECT)$/.test(tagName) ? name == "value" :
+			false;
+	}
+
+	function createOwnFunc(method){
+		function own(){
+			for(var i = 0, l = arguments.length; i < l; ++i){
+				(function(h){
+					var destroyMethodName = typeof h != "object" ? "" :
+						method && (method in h) ? method :
+						"destroyRecursive" in h ? "destroyRecursive" :
+						"destroy" in h ? "destroy" :
+						"cancel" in h ? "cancel" :
+						"remove" in h ? "remove" :
+						"";
+					if(destroyMethodName){
+						var odh = around(this, method || "destroy", function(original, args){
+							h[destroyMethodName]();
+							original.apply(this, args);
+						}), hdh = around(h, destroyMethodName, function(original, args){
+							original.apply(this, args);
+							odh.remove();
+							hdh.remove();
+						});
+					}
+				}).call(this, arguments[i]);
+			}
+			return arguments;
+		}
+		return own;
+	}
+
+	// A basic binding to value, our base class
+	function Binding(){
+		this.create.apply(this, arguments);
 	}
 	Binding.prototype = {
-		then: function(callback){
-			// get the value of this binding, notifying the callback of changes
-			var callbacks= this.callbacks;
-			(callbacks || (this.callbacks = [])).push(callback);
-			if(callbacks){
-				if("value" in this){
-					callback(this.value);
+		create: function(value){
+			if(arguments.length > 0){
+				this.value = value;
+				if(value){
+					value._binding = this;
+					this.own({
+						remove: function(){
+							(value || {})._binding = null;
+						}
+					}, value);
 				}
-			}else{
-				var self = this;
-				callbacks = this.callbacks;
-				this.getValue(function(value){
-					self.value = value;
-					for(var i = 0; i < callbacks.length; i++){
-						callbacks[i](value);
-					}
-				});
 			}
 		},
-		getValue: function(callback){
-			if(this.hasOwnProperty("value")){
-				callback(this.value);
+		canuse: function(option){
+			return option in bind;
+		},
+		use: function(){
+			this.options = this.options || {};
+			for(var i = 0, l = arguments.length; i < l; ++i){
+				var option = arguments[i];
+				if(this.canuse(option)){ // Ignore non-valid option
+					// If this is the last arg, or the next arg is a valid option, set true. Otherwise set the next arg as the option value
+					this.options[option] = i + 1 >= l || this.canuse(arguments[i + 1]) || arguments[++i];
+				}
 			}
+			return this;
+		},
+		using: function(option){
+			return (this.options || {})[option];
+		},
+		then: function(callback, errback){
+			var observable = this.observable;
+			if(!observable){
+				observable = this.observable = new Observable();
+				this.getValue(Observable.makeSignaler(observable));
+			}
+			return this.own(observable.then(callback, errback))[0];
+		},
+		getValue: function(callback){
+			callback(this.value);
+		},
+		setValue: function(value, callback){
+			var self = this;
+			this.getValue(function(oldValue){
+				if(oldValue !== value){
+					self.value = value;
+					if(callback){
+						callback(value);
+					}
+				}
+			});
 		},
 		get: function(key, callback){
 			// use an existing child/property if it exists
-			var value, child = this['_' + key] || 
-				(this['_' + key] = this.hasOwnProperty("value") && typeof this.value == "object" ?
-					(value = this.value[key]) && typeof value != "object" ? new PropertyBinding(this.value, key) :
-						convertToBindable(value) : new Binding());
+			var child = this['_' + key] || (this['_' + key] = this.own(new Binding())[0]);
+			if(callback){
+				return child.then(callback);
+			}
+			return child;
+		},
+		set: function(key, child, callback){
+			this['_' + key] = child = this.own(convertToBindable(child))[0];
 			if(callback){
 				return child.then(callback);
 			}
 			return child;
 		},
 		put: function(value){
-			if(this.source){
-				this.source.put(value);
+			var source = this.source;
+			if((source || {}).put){
+				source.put(value);
+			}else if((source || {}).resolve){
+				source.resolve(value);
 			}
 			this.is(value);
 		},
 		is: function(value){
-			if(value !== this.value){
-				this.value = value;
-				if(typeof this.value == "object"){
-					for(var i in value){
-						if(i.charAt(0) != '_'){
-							this.get(i).is(value[i]);
-						}
-					}
-				}
-				if(this.callbacks){
-					for(var i = 0; i < this.callbacks.length; i++){
-						this.callbacks[i](value);
-					}
-				}
-			}
+			this.setValue(value, Observable.makeSignaler(this.observable));
 		},
 		keys: function(callback){
-			if(this.source){
-				this.source.keys(callback);
+			var self = this;
+			if((this.source || {}).keys){
+				this.source.keys(function(i){
+					callback(i, self.get(i));
+				});
 			}
-			for(var i in this.value){
-				if(i.charAt(0) != '_'){
-					callback(i, this.get(i));
-				}			}
 		},
 		to: function(source, property){
+			this.reset();
 			source = convertToBindable(source);
 			if(property){
 				source = source.get(property);
 			}
 			var self = this;
 			this.source = source;
-			source.then(function(value){
+			this.resettable(source.then(function(value){
 				self.is(value);
-			});
-			for(var i in this){
-				if(i.charAt(0) == '_'){
-					i = i.slice(1);
-					var child = self.get(i);
-					var sourceChild = source.get(i);
-					if(child != sourceChild){
-						child.to(sourceChild);
+			}));
+			return this.enumerate();
+		},
+		enumerate: function(){
+			var self = this,
+				source = this.source;
+			if(source.get){
+				for(var i in this){
+					if(i.charAt(0) == '_' && (i = i.slice(1))){
+						var child = this.get(i),
+							sourceChild = source.get(i);
+						if(child != sourceChild){
+							this.resettable(child.to(sourceChild));
+						}
 					}
 				}
 			}
-			source.keys(function(i, sourceChild){
+			source.keys && source.keys(function(i, sourceChild){
 				if(!(('_' + i) in self)){
 					var child = self.get(i);
 					if(child != sourceChild){
-						child.to(sourceChild);
+						self.resettable(child.to(sourceChild));
 					}
 				}
 			});
 			return this;
+		},
+		own: createOwnFunc(),
+		resettable: createOwnFunc("reset"),
+		reset: function(){},
+		destroy: function(){
+			this.reset();
+			this.cancel();
+			this.destroyed = true;
+		},
+		isCanceled: function(){
+			return this.observable && this.observable.isCanceled() || this.cancelled;
+		},
+		resolve: function(value){
+			this.is(value);
+		},
+		reject: function(e){
+			this.observable && this.observable.reject(e);
+		},
+		cancel: function(){
+			this.observable && this.observable.cancel();
+			this.cancelled = true;
 		}
 	};
-	// StatefulBinding is used for binding to Stateful objects, particularly Dijit widgets
-	function StatefulBinding(stateful){
-		this.stateful = stateful;
-		stateful._binding = this;
+
+	function ObjectBinding(){
+		Binding.apply(this, arguments);
 	}
-	StatefulBinding.prototype = new Binding({}); 
-	StatefulBinding.prototype.to = function(source){
-		Binding.prototype.to.apply(this, arguments);
-		source = this.source;
-		var stateful = this.stateful;
-		source.then(function(value){
-			stateful.set('value', value);
-		});
-		stateful.watch('value', function(property, oldValue, value){
-			if(oldValue !== value){
-				source.put(value);
-			}
-		});
-		return this;
+	ObjectBinding.prototype = new Binding();
+	ObjectBinding.prototype.create = function(object){
+		this.object = object;
+		if(object){
+			object._binding = this;
+			this.own({
+				remove: function(){
+					(object || {})._binding = null;
+				}
+			}, object);
+		}
+		Binding.prototype.create.call(this);
 	};
-	StatefulBinding.prototype.get = function(key, callback){
-		return this['_' + key] || (this['_' + key] = new StatefulPropertyBinding(this.stateful, key));
+	ObjectBinding.prototype.get = function(key){
+		// use an existing child/property if it exists
+		this['_' + key] || (this['_' + key] = this.own(new PropertyBinding(this.object, key))[0]);
+		return Binding.prototype.get.apply(this, arguments);
 	};
-	StatefulBinding.prototype.keys = function(callback){
-		for(var i in this.stateful){
+	ObjectBinding.prototype.keys = function(callback){
+		if((this.source || {}).keys){
+			Binding.prototype.keys.apply(this, arguments);
+			return;
+		}
+		for(var i in this.object){
 			if(i.charAt(0) != '_'){
 				callback(i, this.get(i));
 			}
 		}
 	};
 
-	function StatefulPropertyBinding(stateful, name){
-		this.stateful = stateful;
-		this.name = name;
+	function PropertyBinding(){
+		Binding.apply(this, arguments);
 	}
-	StatefulPropertyBinding.prototype = new Binding;
-	StatefulPropertyBinding.prototype.getValue = function(callback){
-		// get the value of this property
-		var stateful = this.stateful,
-			name = this.name;
-		// get the current value
-		callback(stateful.get(name));
-		// watch for changes
-		stateful.watch(name, function(name, oldValue, newValue){
-			if(oldValue !== newValue){
-				callback(newValue);
+	PropertyBinding.prototype = new Binding();
+	PropertyBinding.prototype.create = function(object, name){
+		this.object = object;
+		this.name = name;
+		Binding.prototype.create.call(this);
+	};
+	PropertyBinding.prototype.getValue = function(callback){
+		callback(this.object[this.name]);
+	};
+	PropertyBinding.prototype.setValue = function(value, callback){
+		var self = this;
+		this.getValue(function(oldValue){
+			if(oldValue !== value){
+				self.object[self.name] = value;
+				if(callback){
+					callback(value);
+				}
 			}
 		});
 	};
-	StatefulPropertyBinding.prototype.is = function(value){
-		// don't go through setters, it is bubbling up through the source
-		this.stateful._changeAttrValue(this.name, value);
-		//return Binding.prototype.is.call(this, value);
-	}
-	StatefulPropertyBinding.prototype.put = function(value){
-		// put a value, go through setter
-		this.stateful.set(this.name, value);
-	}
 
-	function ElementBinding(element, container){
-		this.element= element;
-		this.container = container;
-		element._binding = this;
+	function ViewModelBinding(){
+		ObjectBinding.apply(this, arguments);
 	}
-	function ContainerBinding(element){
-		return new ElementBinding(element, true);
-	}
-	ElementBinding.prototype = new Binding({});
-	var checkable = {radio: 1, checkbox: 1};
-	ElementBinding.prototype.is = function(value){
-		var element = this.element;
-		if(this.container || element.tagName == "FORM"){
-			return Binding.prototype.is.call(this, value);
-		};
-		if("value" in element){
-			if(element.type == "radio"){
-				element.checked = element.value == value;
-			}else if(element.type == "checkbox"){
-				element.checked = value;
-			}else{
-				element.value = value || "";
-			}
-		}else{
-			element.innerText = value || "";
+	ViewModelBinding.prototype = new ObjectBinding();
+	ViewModelBinding.prototype.create = function(){
+		ObjectBinding.prototype.create.apply(this, arguments);
+		if(arguments.length > 0){
+			var object = this.object,
+				self = this;
+			this.keys(function(i, child){
+				var prop = object[i];
+				self[i] || (self[i] = !isPrimitiveLike(prop) ? prop : child); // Allows consuming components to refer to the original property values directly from this (except for non-object property values)
+			});
 		}
-		this.oldValue = value;
 	};
-	var inputLike = {
-		"INPUT":1,
-		"SELECT":1,
-		"TEXTAREA":1
+	ViewModelBinding.prototype.getValue = function(callback){
+		callback(undef);
+	};
+	ViewModelBinding.prototype.setValue = function(value, callback){
+		callback && callback(undef);
+	};
+	ViewModelBinding.prototype.get = function(key){
+		// use an existing child/property if it exists
+		var object = this.object,
+			prop = object[key];
+		this['_' + key] || (this['_' + key] = this.own(!isPrimitiveLike(prop) ? convertToBindable(prop) : new PropertyBinding(object, key))[0]);
+		return Binding.prototype.get.apply(this, arguments);
+	};
+	ViewModelBinding.prototype.set = function(key, child){
+		this[key] || (this[key] = this.own(!isPrimitiveLike(child) ? child : convertToBindable(child))[0]); // Allows consuming components to refer to the original property values directly from this (except for non-object)
+		Binding.prototype.set.apply(this, arguments);
+	};
+
+	function ElementBinding(){
+		ObjectBinding.apply(this, arguments);
+	}
+	ElementBinding.prototype = new ObjectBinding();
+	ElementBinding.prototype.create = function(){
+		ObjectBinding.prototype.create.apply(this, arguments);
+		this.element = this.object;
+	};
+	var checkable = {radio: 1, checkbox: 1};
+	ElementBinding.prototype.getValue = function(callback){
+		var element = this.element;
+		if(isContainer(element)){
+			Binding.prototype.getValue.apply(this, arguments);
+		}else{
+			var value = !("value" in element) ? element.innerText :
+				element.type in checkable ? element.checked :
+				element.tagName == "SELECT" && this.preservedValue !== undef ? this.preservedValue :
+				typeof this.preservedValue == "number" && !isNaN(element.value) ? +element.value :
+				element.value;
+			callback(value);
+		}
+	};
+	ElementBinding.prototype.setValue = function(value, callback){
+		var element = this.element;
+		if(isContainer(element)){
+			Binding.prototype.setValue.apply(this, arguments);
+		}else{
+			var self = this;
+			this.getValue(function(oldValue){
+				if(oldValue !== value){
+					if("value" in element){
+						if(element.type == "radio"){
+							element.checked = element.value == value;
+						}else if(element.type == "checkbox"){
+							element.checked = value;
+						}else{
+							element.value = value == null ? "" : value;
+						}
+					}else{
+						element.innerText = value == null ? "" : value;
+					}
+					self.preservedValue = value;
+					if(callback){
+						callback(value);
+					}
+				}
+			});
+		}
+	};
+	ElementBinding.prototype.get = function(key){
+		var attrib,
+			element = this.element;
+		this['_' + key] ||
+			(this['_' + key] = /^\.collapsed$/i.test(key) ? this.own(new ElementCollapsedBinding(element))[0] :
+				/^\.hidden$/i.test(key) ? this.own(new ElementHiddenBinding(element))[0] :
+				key.charAt(0) == '.' ? this.own(new ElementClassBinding(element, key.substr(1)))[0] :
+				(attrib = (/^\[(.*)\]$/.exec(key) || [])[1]) ? this.own(new ElementAttributeBinding(element, attrib))[0] :
+				!isContainer(element) ? this.own(new ElementPropertyBinding(element, key))[0] :
+				undef);
+		return Binding.prototype.get.apply(this, arguments);
+	};
+	ElementBinding.prototype.then = function(callback){
+		var hc, hcc,
+			promise = Binding.prototype.then.call(this, callback),
+			element = this.element,
+			self = this;
+		function onChange(){
+			var preservedValue = self.preservedValue;
+			self.preservedValue = undef; // Temporary clear the preserved value to obtain the new user input
+			self.getValue(function(value){
+				self.preservedValue = preservedValue;
+				callback(typeof preservedValue == "number" && !isNaN(value) ? +value : value);
+			});
+		}
+		if(!isContainer(element)){
+			hc = on(element, "change", onChange);
+			if(element.getAttribute("data-continuous")){
+				hcc = on(element, "keyup", onChange);
+			}
+		}
+		return this.own({
+			remove: function(){
+				hcc && hcc.remove();
+				hc && hc.remove();
+				promise && promise.cancel();
+				return hcc = hc = promise = null;
+			}
+		})[0];
+	};
+	ElementBinding.prototype.keys = function(){
+		Binding.prototype.keys.apply(this, arguments); // Let source provide keys, not generaitng keys from object
 	};
 	ElementBinding.prototype.to = function(source){
 		Binding.prototype.to.apply(this, arguments);
 		source = this.source;
-		var element = this.element;
-		if(element.tagName == "FORM"){
-			var binding = this;
-			function findInputs(tag){
-				var inputs = element.getElementsByTagName(tag);
-				for(var i = 0; i < inputs.length; i++){
-					var input = inputs[i];
-					if(input.name){
-						bind(input, binding.get(input.name));
-					}
+		var element = this.element,
+			self = this;
+		if(isContainer(element) && !this.name){ // This function can is used for ElementPropertyBinding, too
+			this.parse();
+		}else if(isUserChangeable(this)){
+			function onChange(){
+				if(element.type != "radio" || element.checked){
+					var preservedValue = self.preservedValue;
+					self.preservedValue = undef; // Temporary clear the preserved value to obtain the new user input
+					self.getValue(function(value){
+						self.preservedValue = preservedValue;
+						source.put(typeof preservedValue == "number" && !isNaN(value) ? +value : value);
+					});
 				}
 			}
-			findInputs("input");
-			findInputs("select");
-		}else if(element.tagName in inputLike){
-			var value, binding = this,
-				onchange = element.onchange = function(){
-				if(element.type == "radio"){
-					if(element.checked){
-						value = element.value;
-					}else{
-						return; // not checked, don't do anything
-					}
-				}else{
-					value = element.type == "checkbox" ? element.checked : element.value;
-				}
-				source.put(typeof binding.oldValue == "number" && !isNaN(value) ? +value : value);
-			};
-			if(element.getAttribute('data-continuous')){
-				element.onkeyup = onchange;
+			this.resettable(on(element, "change", onChange));
+			if(element.getAttribute("data-continuous")){
+				this.resettable(on(element, "keyup", onChange));
 			}
 		}
 		return this;
-	}
-	ElementBinding.prototype.then = function(callback){
-		var element = this.element;
-		if(this.container){
-			return Binding.prototype.then.call(this, callback);
-		}
-		if("value" in element){
-			callback(element.value);
-			element.onchange = function(){
-				callback(element.value);
-			};
-		}else{
-			callback(element.innerText);
-		}
 	};
-	function ArrayBinding(){
+	ElementBinding.prototype.parse = function(){
+		var element = this.element,
+			source = this.source;
+		function findInputs(tag){
+			var inputs = element.getElementsByTagName(tag);
+			for(var i = 0; i < inputs.length; i++){
+				var input = inputs[i];
+				if(input.name){
+					bind(input, source.get(input.name));
+				}
+			}
+		}
+		findInputs("input");
+		findInputs("select");
+		return this;
+	};
+
+	function ElementPropertyBinding(){
+		PropertyBinding.apply(this, arguments);
+	}
+	ElementPropertyBinding.prototype = new PropertyBinding();
+	ElementPropertyBinding.prototype.create = function(){
+		PropertyBinding.prototype.create.apply(this, arguments);
+		this.element = this.object;
+	};
+	ElementPropertyBinding.prototype.then = ElementBinding.prototype.then;
+	ElementPropertyBinding.prototype.to = ElementBinding.prototype.to;
+
+	function ElementCollapsedBinding(){
 		Binding.apply(this, arguments);
 	}
-	ArrayBinding.prototype = new Binding({});
-	ArrayBinding.prototype.getValue = function(callback){
-		var currentValues = [],
-			updates = 0;
-			length = this.value.length;
-		// watch all the items, and return a resulting array whenever an item is updated
-		for(var i = 0; i < length; i++){
-			(function(i, source){
-				when(source, function(value){
-					currentValues[i] = value;
-					updates++;
-					if(updates >= length){
-						callback(currentValues);
-					}
-				});
-			})(i, this.value[i]);
-		}
-	}
-	function PropertyBinding(object, name){
-		this.object = object;
-		this.name = name;
-	}
-	PropertyBinding.prototype = new Binding;
-	PropertyBinding.prototype.getValue = function(callback){
-		callback(this.object[this.name]);
+	ElementCollapsedBinding.prototype = new Binding();
+	ElementCollapsedBinding.prototype.create = function(element){
+		this.element = element;
+		Binding.prototype.create.call(this);
 	};
-	PropertyBinding.prototype.put = function(value){
-		this.object[this.name] = value;
-		this.is(value);
+	ElementCollapsedBinding.prototype.getValue = function(callback){
+		callback(/^none$/i.test(this.element.style.display));
+	};
+	ElementCollapsedBinding.prototype.setValue = function(value, callback){
+		var element = this.element;
+		this.getValue(function(oldValue){
+			if(oldValue ^ value){
+				element.style.display = value ? "none" : "";
+				if(callback){
+					callback(value);
+				}
+			}
+		});
+	};
+
+	function ElementHiddenBinding(){
+		Binding.apply(this, arguments);
 	}
-	function FunctionBinding(func, reverseFunc){
+	ElementHiddenBinding.prototype = new Binding();
+	ElementHiddenBinding.prototype.create = function(element){
+		this.element = element;
+		Binding.prototype.create.call(this);
+	};
+	ElementHiddenBinding.prototype.getValue = function(callback){
+		callback(/^hidden$/i.test(this.element.style.visibility));
+	};
+	ElementHiddenBinding.prototype.setValue = function(value, callback){
+		var element = this.element;
+		this.getValue(function(oldValue){
+			if(oldValue ^ value){
+				element.style.visibility = value ? "hidden" : "";
+				if(callback){
+					callback(value);
+				}
+			}
+		});
+	};
+
+	function ElementAttributeBinding(){
+		ElementPropertyBinding.apply(this, arguments);
+	}
+	ElementAttributeBinding.prototype = new ElementPropertyBinding();
+	ElementAttributeBinding.prototype.getValue = function(callback){
+		callback(this.object.getAttribute(this.name));
+	};
+	ElementAttributeBinding.prototype.setValue = function(value, callback){
+		var self = this;
+		this.getValue(function(oldValue){
+			if(oldValue !== value){
+				value == null ? self.object.removeAttribute(self.name) : self.object.setAttribute(self.name, value);
+				callback(value);
+			}
+		});
+	};
+
+	function ElementClassBinding(){
+		PropertyBinding.apply(this, arguments);
+	}
+	ElementClassBinding.prototype = new PropertyBinding();
+	ElementClassBinding.prototype.getValue = function(callback){
+		var classes = this.object.className.split(/\s+/);
+		for(var i = 0, l = classes.length; i < l; ++i){
+			if(classes[i].replace(/^\s+/, "").replace(/\s+$/, "").toLowerCase() == this.name.toLowerCase()){
+				callback(true);
+				return;
+			}
+		}
+		callback(false);
+	};
+	ElementClassBinding.prototype.setValue = function(value, callback){
+		var self = this;
+		this.getValue(function(oldValue){
+			if(oldValue ^ value){
+				var element = self.object;
+				if(value){
+					element.className += " " + self.name;
+				}else{
+					var classes = element.className.split(/\s+/);
+					for(var i = classes.length - 1; i >= 0; --i){
+						if(classes[i].replace(/^\s+/, "").replace(/\s+$/, "").toLowerCase() == self.name.toLowerCase()){
+							classes.splice(i, 1);
+						}
+					}
+					element.className = classes.join(" ");
+				}
+				if(callback){
+					callback(value);
+				}
+			}
+		});
+	};
+
+	function ArrayBinding(){
+		ObjectBinding.apply(this, arguments);
+	}
+	ArrayBinding.prototype = new ObjectBinding();
+	ArrayBinding.prototype.then = function(callback, errback){
+		var observable = this.observable;
+		if(!observable){
+			var currentValues = [],
+				updates = 0,
+				length = this.object.length,
+				signaler = Observable.makeSignaler(observable = this.observable = new Observable());
+			// watch all the items, and return a resulting array whenever an item is updated
+			for(var i = 0; i < length; i++){
+				(function(i, source){
+					Observable.when(source, function(value){
+						currentValues[i] = value;
+						updates++;
+						if(updates >= length){
+							signaler(currentValues);
+						}
+					});
+				})(i, this.object[i]);
+			}
+		}
+		return this.own(observable.then(callback, errback))[0];
+	};
+
+	function FunctionBinding(){
+		Binding.apply(this, arguments);
+	}
+	FunctionBinding.prototype = new Binding();
+	FunctionBinding.prototype.create = function(func, reverseFunc){
 		this.func = func;
 		this.reverseFunc = reverseFunc;
-	}
-	FunctionBinding.prototype = {
-		then: function(callback){
-			if(callback){
-				var func = this.func;
-				return this.source.then(function(value){
-					callback(value.slice ? func.apply(this, value) : func(value));
-				});
+		Binding.prototype.create.call(this);
+	};
+	FunctionBinding.prototype.get = function(key){
+		return this['_' + key] || (this['_' + key] = new Binding());
+	};
+	FunctionBinding.prototype.put = function(value){
+		this.source && this.reverseFunc && this.source.put(this.reverseFunc(value));
+		this.is(value);
+	};
+	FunctionBinding.prototype.keys = function(){};
+	FunctionBinding.prototype.to = function(source, property){
+		this.reset();
+		source = convertToBindable(source);
+		if(property){
+			source = source.get(property);
+		}
+		var self = this,
+			func = this.func;
+		this.source = source;
+		this.resettable(source.then(function(value){
+			self.is(isArray(value) ? func.apply(self, value) : func(value));
+		}));
+		return this;
+	};
+
+	function destroy(element){
+		for(var list = [element].concat([].slice.call(element.getElementsByTagName("*"), 0)), i = 0, l = list.length; i < l; ++i){
+			if(list[i]._binding){
+				list[i]._binding.destroy();
 			}
-		},
-		get: function(key){
-			return this[key] || (this[key] = new Binding('None'));
-		},
-		put: function(value){
-			this.source.put(this.reverseFunc(value));
-		},
-		is: function(){},
-		to: function(source){
-			source = bind.apply(this, arguments);
-			this.source = source;
-			return this;
-		},
-		keys: function(){}
-	} 
-	function convertToBindable(object){
-		return object ?
-			object._binding || 
-				(object.get ? 
-					object.is ?
-				 		object :
-					 	new StatefulBinding(object) :
+		}
+	}
+
+	function defaultConverter(object){
+		return object != null ?
+			object._binding ||
+				(object.then ?
+					object :
 					object.nodeType ?
 						new ElementBinding(object) :
-						typeof object == "function" ?
+						isFunction(object) ?
 							new FunctionBinding(object) :
-							object instanceof Array ?
+							isArray(object) ?
 								new ArrayBinding(object) :
-				 				new Binding(object))
-			: new Binding(object);
+								typeof object == "object" ?
+									new ViewModelBinding(object) :
+									new Binding(object)) :
+			new Binding(object);
 	}
+
+	var converters = [defaultConverter];
+	function register(converter){
+		converters.unshift(converter);
+	}
+	function convertToBindable(object){
+		for(var list = converters.slice(0), converter, binding; converter = list.shift();){
+			if(binding = converter(object)){
+				return binding;
+			}
+		}
+	}
+
 	function bind(to){
 		// first convert target object to the bindable interface
 		to = convertToBindable(to);
-	
+
 		for(var i = 1; i < arguments.length; i++){
 			var arg = arguments[i];
-			if(typeof arg == "object" || typeof arg == "function"){
+			if(!isPrimitiveLike(arg)){
 				arg = convertToBindable(arguments[i]);
 				to.to(arg);
 			}else{
@@ -338,49 +693,23 @@ define([], function(){
 			}
 		}
 		return to;
-	};
-	var nativeWatch = Object.prototype.watch;
-	function get(object, key, callback){
-		if(key.call){
-			// get(object ,callback) form
-			if(object.get){
-				if(object.get.binding){
-					object.get(key);
-				}else{
-					key(object.get('value'));
-				}
-			}else{
-				key(object);
-			}
-		}else{
-			var value;
-			if(object.get){
-				if(object.get.binding){
-					object.get(key, callback);
-				}else{
-					key(object.get('value'));
-					if(object.watch === nativeWatch){
-						object.watch('value', key);
-					}
-				}
-			}else{
-				return new PropertyBinding(object, key);
-			}
-		}
-	};
-	bind.get = get;
-	bind.Element = ElementBinding;
-	bind.Container = ContainerBinding;
-	bind.Binding = Binding;
-
-
-	function when(value, callback){
-		if(value && value.then){
-			return value.then(callback);
-		}
-		return callback(value);
 	}
-	bind.when = when;
+
+	bind.isPrimitiveLike = isPrimitiveLike;
+	bind.isContainer = isContainer;
+	bind.createOwnFunc = createOwnFunc;
+	bind.destroy = destroy;
+	bind.register = register;
+	bind.Object = ObjectBinding;
+	bind.Property = PropertyBinding;
+	bind.Element = ElementBinding;
+	bind.ElementCollapsed = ElementCollapsedBinding;
+	bind.ElementHidden = ElementHiddenBinding;
+	bind.ElementClass = ElementClassBinding;
+	bind.ElementAttribute = ElementAttributeBinding;
+	bind.Function = FunctionBinding;
+	bind.Binding = Binding;
+	bind.container = "container";
 
 	return bind;
 });

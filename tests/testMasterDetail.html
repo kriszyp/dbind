@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Test master/detail</title>
+		<style type="text/css">
+			@import "../../dojo/resources/dojo.css";
+			.cell {
+				width: 16ex;
+				display: inline-block;
+			}
+		</style>
+		<script type="text/javascript" src="../../dojo/dojo.js" 
+			data-dojo-config="async: 1"></script>
+		<script type="text/javascript">
+			require([
+				"dbind/tests/testAddressViewModel",
+				"dbind/foreach",
+				"dojo/on",
+				"dojo/domReady!"
+			], function(viewModel, bind, on){
+				bind(document.getElementById("container")).use(bind.createChild, function(entry){
+						var div = document.createElement("div"),
+							textbox = document.createElement("input"),
+							button = document.createElement("input");
+						textbox.setAttribute("name", "First");
+						textbox.setAttribute("type", "text");
+						button.setAttribute("type", "button");
+						button.setAttribute("value", "Details");
+						button.uniqueId = entry.id;
+						on(button, "click", function(event){
+							viewModel.select.call(this, event, bind(event.target), bind(entry));
+						});
+						div.appendChild(textbox);
+						div.appendChild(button);
+						bind(div).use(bind.container).to(entry);
+						return div;
+					},
+					bind.parent, viewModel
+				).foreach(viewModel.collection);
+				bind(document.getElementById("detail")).use(bind.container).to(viewModel.selection);
+				var group = bind(document.getElementById("group"));
+				group.to(viewModel, "group");
+				group.foreach(viewModel.groups);
+				on(document.getElementById("commit"), "click", function(event){
+					viewModel.pushCurrent.call(this, event, bind(event.target), viewModel);
+				});
+				on(document.getElementById("reset"), "click", function(event){
+					viewModel.pullCurrent.call(this, event, bind(event.target), viewModel);
+				});
+				on(document.getElementById("commitall"), "click", function(event){
+					viewModel.pushAll.call(this, event, bind(event.target), viewModel);
+				});
+				on(document.getElementById("resetall"), "click", function(event){
+					viewModel.pullAll.call(this, event, bind(event.target), viewModel);
+				});
+			});
+		</script>
+	</head>
+	<body>
+		<h2>Test master/detail</h2>
+		<div>
+			<label for="group">Select group:</label>
+			<select id="group"></select>
+			<input id="commitall" type="button" value="Commit All">
+			<input id="resetall" type="button" value="Reset All">
+		</div>
+		<div id="container"></div>
+		<div id="detail">
+			<div>
+				<label class="cell" for="first">First Name:</label>
+				<input id="first" name="First" type="text">
+			</div>
+			<div>
+				<label class="cell" for="last">Last Name:</label>
+				<input id="last" name="Last" type="text">
+			</div>
+			<div>
+				<label class="cell" for="office">Office:</label>
+				<input id="office" name="Office" type="text">
+			</div>
+			<div>
+				<label class="cell" for="email">Email:</label>
+				<input id="email" name="Email" type="text">
+			</div>
+			<div>
+				<label class="cell" for="phone">Telephone:</label>
+				<input id="phone" name="Tel" type="text">
+			</div>
+			<div>
+				<label class="cell" for="fax">Fax:</label>
+				<input id="fax" name="Fax" type="text">
+			</div>
+		</div>
+		<div>
+			<input id="commit" type="button" value="Commit">
+			<input id="reset" type="button" value="Reset">
+		</div>
+	</body>
+</html>

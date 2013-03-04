@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Loan Form (Using dbind)</title>
+		<style type="text/css">
+			@import "../../dojox/mvc/tests/css/app-format.css";
+			.error-message {
+				color: red;
+			}
+		</style>
+		<script type="text/javascript" src="../../dojo/dojo.js" 
+			data-dojo-config="async: 1"></script>
+		<script type="text/javascript">
+			require([
+				"dbind/tests/testLoanViewModel",
+				"dbind/bind",
+				"dojox/mvc/at",
+				"dojox/mvc/StatefulSeries",
+				"dojox/charting/Chart",
+				"dojox/charting/themes/PlotKit/blue",
+				"dbind/parse",
+				"dojox/charting/plot2d/Pie",
+				"dojo/domReady!"
+			], function(viewModel, bind, at, StatefulSeries, Chart, blue){
+				var chartData = viewModel.ChartData;
+				new Chart("expenseChart")
+				 .setTheme(blue)
+				 .addPlot("default", {type: "Pie"})
+				 .addSeries("default", new StatefulSeries([at(chartData, "Mortgage"), at(chartData, "Taxes"), at(chartData, "OtherHousing")])).render();
+				bind(document.body).to(viewModel);
+			});
+		</script>
+	</head>
+	<body>
+		<div id="wrapper">
+			<div id="header">
+				<div id="navigation"></div>
+				<div id="headerInsert">
+					<h1>Big Red Loan</h1>
+					<h2>The one to choose when you're in the red...</h2>
+				</div>
+			</div>
+			<div id="main">
+				<div id="leftNav"></div>
+				<div id="mainContent">
+					<h3>Borrower information</h3>
+					<hr size="6" class="rule"/>
+					<div class="spacer"></div>
+					<div class="row">
+						<div class="cell"><label for="borrowerInput">Name:</label></div>
+						<div class="cell">
+							<input id="borrowerInput" name="Name" type="text">
+						</div>
+					</div>
+					<div class="row">
+						<div class="cell"><label for="zipInput">Zipcode (try 10706):</label></div>
+						<div class="cell">
+							<input id="zipInput" name="Zip" type="text">
+							<span class="error-message"
+								data-mvc-bindings="ZipError"></span>
+						</div>
+					</div>
+					<div class="row">
+						<div class="cell"><label for="cityInput">City:</label></div>
+						<div class="cell">
+							<input id="cityInput" name="City" type="text">
+						</div>
+					</div>
+					<div class="row">
+						<div class="cell"><label for="countyInput">County:</label></div>
+						<div class="cell">
+							<input id="countyInput" name="Country" type="text">
+						</div>
+					</div>
+					<div class="row">
+						<div class="cell"><label for="stateInput">State:</label></div>
+						<div class="cell">
+							<input id="stateInput" name="State" type="text">
+						</div>
+					</div>
+					<div class="spacer"></div>
+					<h3>Expenses</h3>
+					<hr size="6" class="rule"/>
+					<div class="spacer"></div>
+					<div style="position:relative;">
+						<div id="expenseChart" style="position:absolute;left:400px;width:150px;height:150px;"></div>
+						<div class="row">
+							<div class="cell"><label for="housing">Mortgage:</label></div>
+							<div class="cell">
+								<input id="housing" type="text" name="Mortgage">
+							</div>
+						</div>
+						<div class="row">
+							<div class="cell"><label for="taxes">Real Estate Taxes:</label></div>
+							<div class="cell">
+								<input id="taxes" type="text" name="Taxes">
+							</div>
+						</div>
+						<div class="row">
+							<div class="cell"><label for="otherHousing">Other Housing:</label></div>
+							<div class="cell">
+								<input id="otherHousing" type="text" name="OtherHousing">
+							</div>
+						</div>
+						<div class="row">
+							<div class="cell"><label for="totalHousing">Total Housing:</label></div>
+							<div class="cell">
+								<input id="totalHousing" type="text" name="TotalHousing">
+							</div>
+						</div>
+					</div>
+					<h3>Income</h3>
+					<hr size="6" class="rule"/>
+					<div class="spacer"></div>
+					<div class="row">
+						<div class="cell"><label for="baseIncome">Base Income:</label></div>
+						<div class="cell">
+							<input id="baseIncome" type="text" name="BaseIncome">
+						</div>
+					</div>
+					<div class="row">
+						<div class="cell"><label for="bonusIncome">Bonus Income:</label></div>
+						<div class="cell">
+							<input id="bonusIncome" type="text" name="BonusIncome">
+						</div>
+					</div>
+					<div class="row">
+						<div class="cell"><label for="total">Total Income:</label></div>
+						<div class="cell">
+							<input id="total" type="text" name="TotalIncome">
+						</div>
+					</div>
+					<h3>Analysis</h3>
+					<hr size="6" class="rule"/>
+					<div class="spacer"></div>
+					<div class="row">
+						<div class="cell"><label for="percentHousing">Percent housing (under 33%):</label></div>
+						<div class="cell">
+							<input id="percentHousing" type="text" name="HousingPercent"
+								data-mvc-bindings="'[disabled]': HousingPercentDisabled">
+							<span class="error-message"
+								data-mvc-bindings="HousingPercentError"></span>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</body>
+</html>

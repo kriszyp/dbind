@@ -1,8 +1,14 @@
 define(['json-schema/lib/validate', './bind'], function(validate, bind){
-	function ValidatorBinding(schema){
-		this.schema = schema;
+	var Binding = bind.Binding;
+
+	function ValidatorBinding(){
+		Binding.apply(this, arguments);
 	}
-	ValidatorBinding.prototype = new bind.Binding;
+	ValidatorBinding.prototype = new Binding();
+	ValidatorBinding.prototype.create = function(schema){
+		this.schema = schema;
+		Binding.prototype.create.call(this);
+	};
 	ValidatorBinding.prototype.put = function(value){
 		var results = validate(value, this.schema);
 		if(results.valid){

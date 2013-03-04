@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"/>
+		<meta name="apple-mobile-web-app-capable" content="yes"/>
+		<title>Test mobile list</title>
+		<script type="text/javascript" src="../../dojox/mobile/deviceTheme.js"
+			data-dojo-config="mblThemeFiles: ['base', 'TabBar']"></script>
+		<style type="text/css">
+			@import "../../dojo/resources/dojo.css";
+		</style>
+		<script type="text/javascript" src="../../dojo/dojo.js" 
+			data-dojo-config="async: 1"></script>
+		<script type="text/javascript">
+			require([
+				"dbind/tests/testRepeatViewModel",
+				"dbind/dijit",
+				"dojo/aspect",
+				"dojox/mobile/_ItemBase",
+				"dbind/parse",
+				"dojo/domReady!"
+			], function(viewModel, bind, aspect, _ItemBase){
+				aspect.around(_ItemBase.prototype, "defaultClickAction", function(origDefaultClickAction){
+					return function(){
+						// This app's _ItemBase/FilteredStatefulArray/RepeatContainer combination may end up with destroying _ItemBase upon clicking, before updating selection icon
+						if(!this._beingDestroyed){
+							origDefaultClickAction.apply(this, arguments);
+						}
+					};
+				});
+				bind(document.body).use(bind.container).to(viewModel);
+			});
+		</script>
+	</head>
+	<body>
+		<div data-mvc-binding-type="dojox/mobile/Heading"
+			data-mvc-bindings="label: 'Test mobile list'">
+			<ul data-mvc-binding-type="dojox/mobile/TabBar"
+				data-mvc-bindings="barType: 'segmentedControl'">
+				<li data-mvc-binding-type="dojox/mobile/TabBarButton"
+					data-mvc-bindings="label: allLabel, selected: allSelected, onclick: filter">
+				<li data-mvc-binding-type="dojox/mobile/TabBarButton"
+					data-mvc-bindings="label: activeLabel, selected: activeSelected, filterMode: 'active', onclick: filter">
+				<li data-mvc-binding-type="dojox/mobile/TabBarButton"
+					data-mvc-bindings="label: finishedLabel, selected: finishedSelected, filterMode: 'finished', onclick: filter">
+			</ul>
+		</div>
+		<ul data-mvc-binding-type="dojox/mobile/RoundRectList"
+			data-mvc-bindings="foreach: collection, select: 'multiple', '.collapsed': exists">
+			<script type="dbind/InlineTemplate">
+				<li data-mvc-binding-type="dojox/mobile/ListItem"
+					data-mvc-bindings="uniqueId: id, label: title, checked: finished, ondblclick: parent.removeEntry"></li>
+			</script>
+		</ul>
+		<div style="padding: 8px;">
+			<input id="newtitle" type="text" data-mvc-bindings="textToAdd">
+			<input type="button" value="Add" data-mvc-bindings="onclick: addEntry">
+		</div>
+	</body>
+</html>

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Test foreach</title>
+		<style type="text/css">
+			@import "../../dojo/resources/dojo.css";
+		</style>
+		<script type="text/javascript" src="../../dojo/dojo.js" 
+			data-dojo-config="async: 1"></script>
+		<script type="text/javascript">
+			require([
+				"dbind/tests/testRepeatViewModel",
+				"dbind/foreach",
+				"dojo/on",
+				"dojo/domReady!"
+			], function(viewModel, bind, on){
+				bind(document.getElementById("container")).use(bind.createChild, function(entry){
+						var div = document.createElement("div"),
+							checkbox = document.createElement("input"),
+							textbox = document.createElement("input"),
+							button = document.createElement("input");
+						checkbox.setAttribute("name", "finished");
+						checkbox.setAttribute("type", "checkbox");
+						textbox.setAttribute("name", "title");
+						textbox.setAttribute("type", "text");
+						button.setAttribute("type", "button");
+						button.setAttribute("value", "Remove");
+						button.uniqueId = entry.id;
+						on(button, "click", function(event){
+							viewModel.removeEntry.call(this, event, bind(event.target), bind(entry));
+						});
+						div.appendChild(checkbox);
+						div.appendChild(textbox);
+						div.appendChild(button);
+						bind(div).use(bind.container).to(entry);
+						return div;
+					},
+					bind.parent, viewModel
+				).foreach(viewModel.collection);
+				var allButton = document.getElementById("all"),
+					activeButton = document.getElementById("active"),
+					finishedButton = document.getElementById("finished");
+				bind(document.getElementById("newtitle")).to(viewModel, "textToAdd");
+				on(document.getElementById("add"), "click", function(event){
+					viewModel.addEntry.call(this, event, bind(event.target), viewModel);
+				});
+				bind(allButton).to(viewModel, "allLabel");
+				bind(activeButton).to(viewModel, "activeLabel");
+				bind(finishedButton).to(viewModel, "finishedLabel");
+				bind(activeButton, "filterMode").to("active");
+				bind(finishedButton, "filterMode").to("finished");
+				for(var a = [allButton, activeButton, finishedButton], i = 0, l = a.length; i < l; ++i){
+					on(a[i], "click", function(event){
+						viewModel.filter.call(this, event, bind(event.target), viewModel);
+					});
+				}
+			});
+		</script>
+	</head>
+	<body class="claro">
+		<h2>Test foreach</h2>
+		<div id="container"></div>
+		<div>
+			<input id="newtitle" type="text">
+			<input id="add" type="button" value="Add">
+		</div>
+		<div>
+			<input id="all" type="button">
+			<input id="active" type="button">
+			<input id="finished" type="button">
+		</div>
+	</body>
+</html>

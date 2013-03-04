@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Test foreach</title>
+		<style type="text/css">
+			@import "../../dojo/resources/dojo.css";
+		</style>
+		<script type="text/javascript" src="../../dojo/dojo.js" 
+			data-dojo-config="async: 1"></script>
+		<script type="text/javascript">
+			require([
+				"dbind/tests/testRepeatViewModel",
+				"dbind/bind",
+				"dbind/parse",
+				"dojo/domReady!"
+			], function(viewModel, bind){
+				bind(document.body).use(bind.container).to(viewModel);
+			});
+		</script>
+	</head>
+	<body class="claro">
+		<h2>Test foreach</h2>
+		<div data-mvc-bindings="foreach: collection">
+			<script type="dbind/InlineTemplate">
+				<div>
+					<input name="finished" type="checkbox">
+					<input name="title" type="text">
+					<input type="button" value="Remove"
+						data-mvc-bindings="uniqueId: id, onclick: parent.removeEntry">
+				</div>
+			</script>
+		</div>
+		<div>
+			<input id="newtitle" type="text" data-mvc-bindings="textToAdd">
+			<input type="button" value="Add" data-mvc-bindings="onclick: addEntry">
+		</div>
+		<div>
+			<input type="button" data-mvc-bindings="'[value]': allLabel, onclick: filter">
+			<input type="button" data-mvc-bindings="'[value]': activeLabel, filterMode: 'active', onclick: filter">
+			<input type="button" data-mvc-bindings="'[value]': finishedLabel, filterMode: 'finished', onclick: filter">
+		</div>
+	</body>
+</html>

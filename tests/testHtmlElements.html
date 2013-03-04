@@ -11,14 +11,14 @@
 		<script type="text/javascript" src="../../dojo/dojo.js" 
 			data-dojo-config="async: true"></script>
 		<script type="text/javascript">
-			require(["../bind.js", "dojo/domReady!"], function(bind){
+			require(["dbind/bind", "dojo/domReady!"], function(bind){
 				var containerDataBind = bind({
 					".collapsed": false,
 					".hidden": false
 				});
 				bind(document.getElementById("collapse")).to(containerDataBind, ".collapsed");
 				bind(document.getElementById("hide")).to(containerDataBind, ".hidden");
-				new bind.Container(document.getElementById("elements")).to(containerDataBind);
+				bind(document.getElementById("elements")).use(bind.container).to(containerDataBind);
 				bind(document.getElementById("htmloutput")).get("innerHTML").to(document.getElementById("htmlinput"));
 				bind(document.getElementById("elements")).get(".yellow").to(document.getElementById("yellow"));
 				var dataBind = bind({

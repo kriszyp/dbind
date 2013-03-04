@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Test dbind with a form</title>
+		<style type="text/css">
+			@import "../../dojo/resources/dojo.css";
+			.error-message {
+				color: red;
+			}
+		</style>
+		<script type="text/javascript" src="../../dojo/dojo.js" 
+			data-dojo-config="async: true"></script>
+		<script type="text/javascript">
+			require([
+				"dbind/bind",
+				"dbind/Validator",
+				"dbind/parse",
+				"dojo/domReady!"
+			], function(bind, Validator){
+				var quantity = bind(new Validator({type: "number", maximum: 20, minimum: 10})).to(bind(3)),
+					viewModel = bind({
+						quantity: quantity,
+						price: 5,
+						discounted: true,
+						color: "red",
+						pattern: "striped",
+						error: quantity.get("error"),
+						getTotal: bind(function(quantity, price, discounted){
+							return "$" + quantity * price * (discounted ? 0.9 : 1);
+						})
+					});
+				viewModel.get("getTotal").to([quantity, viewModel.get("price"), viewModel.get("discounted")]);
+				bind(document.getElementById("my-form"), viewModel);
+			});
+		</script>
+	</head>
+	<body>
+		<h2>Basic form bindings</h2>
+		<form id="my-form">
+			<div>
+				<div>
+					<label>Quantity</label>
+					<input type="text" name="quantity">
+					<span class="error-message"
+						data-mvc-bindings="error"></span>
+				</div>
+			</div>
+			<div>
+				Price
+				<input type="text" name="price">
+			</div>
+			<div>
+				Discounted
+				<input type="checkbox" name="discounted">
+			</div>
+			<div>
+				Pattern
+				<select name="pattern">
+					<option value="striped">Striped</option>
+					<option value="solid">Solid</option>
+				</select>
+			</div>
+			<div>
+				Color
+				<div>
+					Red
+					<input type="radio" value="red" name="color">
+				</div>
+				<div>
+					Green
+					<input type="radio" value="green" name="color">
+				</div>
+				<div>
+					Blue
+					<input type="radio" value="blue" name="color">
+				</div>
+			</div>
+			<div>
+				<label>Total Price: </label>
+				<span data-mvc-bindings="getTotal"></span>
+			</div>
+		</form>
+	</body>
+</html>

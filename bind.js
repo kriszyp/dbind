@@ -7,7 +7,7 @@ define([], function(){
 		}
 	}
 	Binding.prototype = {
-		then: function(callback){
+		receive: function(callback){
 			// get the value of this binding, notifying the callback of changes
 			var callbacks= this.callbacks;
 			(callbacks || (this.callbacks = [])).push(callback);
@@ -38,7 +38,7 @@ define([], function(){
 					(value = this.value[key]) && typeof value != "object" ? new PropertyBinding(this.value, key) :
 						convertToBindable(value) : new Binding());
 			if(callback){
-				return child.then(callback);
+				return child.receive(callback);
 			}
 			return child;
 		},
@@ -46,6 +46,7 @@ define([], function(){
 			if(this.source){
 				this.source.put(value);
 			}
+			value._binding = this;
 			this.is(value);
 		},
 		is: function(value){
@@ -81,7 +82,7 @@ define([], function(){
 			}
 			var self = this;
 			this.source = source;
-			source.then(function(value){
+			source.receive(function(value){
 				self.is(value);
 			});
 			for(var i in this){
@@ -115,7 +116,7 @@ define([], function(){
 		Binding.prototype.to.apply(this, arguments);
 		source = this.source;
 		var stateful = this.stateful;
-		source.then(function(value){
+		source.receive(function(value){
 			stateful.set('value', value);
 		});
 		stateful.watch('value', function(property, oldValue, value){
@@ -234,10 +235,10 @@ define([], function(){
 		}
 		return this;
 	}
-	ElementBinding.prototype.then = function(callback){
+	ElementBinding.prototype.receive = function(callback){
 		var element = this.element;
 		if(this.container){
-			return Binding.prototype.then.call(this, callback);
+			return Binding.prototype.receive.call(this, callback);
 		}
 		if("value" in element){
 			callback(element.value);
@@ -286,10 +287,10 @@ define([], function(){
 		this.reverseFunc = reverseFunc;
 	}
 	FunctionBinding.prototype = {
-		then: function(callback){
+		receive: function(callback){
 			if(callback){
 				var func = this.func;
-				return this.source.then(function(value){
+				return this.source.receive(function(value){
 					callback(value.slice ? func.apply(this, value) : func(value));
 				});
 			}
@@ -375,8 +376,8 @@ define([], function(){
 
 
 	function when(value, callback){
-		if(value && value.then){
-			return value.then(callback);
+		if(value && value.receive){
+			return value.receive(callback);
 		}
 		return callback(value);
 	}

@@ -1,0 +1,21 @@
+{
+  "name": "xstyle",
+  "author": "Kris Zyp",
+  "description": "Functional reactive data binding package that provides straightforward binding of data to components like form inputs, validation connectors, and more.",
+  "licenses": [
+     {
+         "type": "AFLv2.1",
+         "url": "http://trac.dojotoolkit.org/browser/dojo/trunk/LICENSE#L43"
+     },
+     {
+         "type": "BSD",
+         "url": "http://trac.dojotoolkit.org/browser/dojo/trunk/LICENSE#L13"
+     }
+  ],
+  "repository": {
+    "type":"git",
+    "url":"http://github.com/kriszyp/dbind"
+  },
+  "main": "./bind",
+  "dojoBuild": "package.js"
+}

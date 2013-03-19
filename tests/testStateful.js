@@ -8,7 +8,7 @@ define(['dbind/bind', 'dojo/Stateful', 'dojo/dom-construct', 'dijit/form/TextBox
                     return [].join.apply(arguments);
                 }).to([first, last]));
 
-			fullName.then(function(fullName){
+			fullName.receive(function(fullName){
 				console.log("The full name is now", fullName);
 			});
             return stateful;

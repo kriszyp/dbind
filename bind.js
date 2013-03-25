@@ -309,7 +309,7 @@ define([], function(){
 		},
 		keys: function(){}
 	} 
-	function convertToBindable(object){
+	function defaultConverter(object){
 		return object ?
 			object._binding || 
 				(object.get ? 
@@ -324,6 +324,17 @@ define([], function(){
 								new ArrayBinding(object) :
 				 				new Binding(object))
 			: new Binding(object);
+	}
+	var converters = [defaultConverter];
+	function register(converter){
+		converters.unshift(converter);
+	}
+	function convertToBindable(object){
+		for(var list = converters.slice(), converter, binding; converter = list.shift();){
+			if(binding = converter(object)){
+				return binding;
+			}
+		}
 	}
 	function bind(to){
 		// first convert target object to the bindable interface
@@ -370,6 +381,7 @@ define([], function(){
 		}
 	};
 	bind.get = get;
+	bind.register = register;
 	bind.Element = ElementBinding;
 	bind.Container = ContainerBinding;
 	bind.Binding = Binding;

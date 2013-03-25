@@ -145,6 +145,22 @@ the following methods:
 
 * set(property, value) - Shorthand for get(property).put(value).
 
+Some bindable objects may have shorter lifecycle than others. The following methods can be used to
+make sure bindable object that has finished its lifecycle no longer affects other bindable objects:
+
+* `remove()` - Marks this object as it finished its lifecycle, and cleans up the binding to the
+source object as well as its child bindable objects.
+
+* `reset()` - An internal method, typically called from `to()`, that cleans up the (earlier) binding to
+the source object, as well as the child objects' (earlier) binding to the children of source object
+(if they were bound by the same `to()` call).
+
+* `own(handle, handle, ...)` - An internal method to let `remove()` method call the cleanup method of
+the given handles.
+
+* `resettable(handle, handle, ...)` - An internal method to let `reset()` method call the cleanup
+method of the given handles.
+
 # Composition of Binding-Driven Components
 
 TODO

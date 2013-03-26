@@ -104,6 +104,35 @@ be updated with error message. This makes it easy to build coherent, manageable
 validated forms. The validation layer is distinct from the UI layer, and they can easily 
 be wired together for responsive validated forms and UIs.
 
+# Extension
+
+An extension is an object that augments a bindable object.
+An extension has `extension` property with `true` value, and can be used by:
+
+```javascript
+bind(something).to({
+	extension: true,
+	optionProperty: 0,
+	is: function(originalIs){ // Change to existing function should have dojo/aspect's around() format
+		// Do something before original is()...
+		originalIs.apply(this, arguments);
+		// Do something after original is()...
+	},
+	customFunction: function(){
+		// Do something...
+	},
+	start: function(){
+		this.customFunction(); // Call customMethod() when extension is applied to a bindable
+	}
+});
+```
+
+Regular properties in extension are mixed into target bindable object.
+Same thing happens for functions that are not in target bindable object, too.
+Functions that pre-exist in target bindable object should have `dojo/aspect`'s `around()` format,
+as the function is augmented in such manner.
+Extension can have `start()` method. If there is, it's called when it's applied to a bindable.
+
 # dbind Interfaces
 
 dbind relies on several interfaces for connecting components. You can interact with these objects

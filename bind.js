@@ -163,7 +163,7 @@ define([], function(){
 		},
 		to: function(source, property){
 			this.reset();
-			source = convertToBindable(source);
+			source = convertToBindable(this.extend(source));
 			if(property){
 				source = source.get(property);
 			}
@@ -191,6 +191,23 @@ define([], function(){
 				}
 			});
 			return this;
+		},
+		extend: function(source){
+			if(source.extension){
+				for(var s in source){
+					var prop = source[s];
+					if(!/^(start|extension)$/.test(s)){
+						if(this[s] && typeof prop == "function"){
+							around(this, s, prop);
+						}else{
+							this[s] = prop;
+						}
+					}
+				}
+				source.start && source.start.call(this);
+				source = new Binding(); // Set an empty binding as the source to work as a pass-thru binding
+			}
+			return source;
 		},
 		own: createOwnFunc(),
 		resettable: createOwnFunc("reset"),
@@ -273,18 +290,14 @@ define([], function(){
 		return this;
 	};
 
-	function ElementBinding(element, container){
+	function ElementBinding(element){
 		this.element= element;
-		this.container = container;
 		element._binding = this;
 		this.own({
 			remove: function(){
 				(element || {})._binding = null;
 			}
 		});
-	}
-	function ContainerBinding(element){
-		return new ElementBinding(element, true);
 	}
 	ElementBinding.prototype = new Binding({});
 	var checkable = {radio: 1, checkbox: 1};
@@ -370,6 +383,11 @@ define([], function(){
 			}
 		};
 	};
+
+	function ContainerExtension(){
+		this.extension = this.container = true;
+	}
+
 	function ArrayBinding(){
 		Binding.apply(this, arguments);
 	}
@@ -424,8 +442,7 @@ define([], function(){
 		},
 		is: function(){},
 		to: function(source){
-			source = bind.apply(this, arguments);
-			this.source = source;
+			this.source = bind.apply(this, [Binding.prototype.extend.call(this, source)].concat([].slice.call(arguments, 1)));
 			return this;
 		},
 		keys: function(){}
@@ -433,8 +450,8 @@ define([], function(){
 	function convertToBindable(object){
 		return object ?
 			object._binding || 
-				(object.get ? 
-					object.is ?
+				(object.get || object.extension ?
+					object.is || object.extension ?
 				 		object :
 					 	new StatefulBinding(object) :
 					object.nodeType ?
@@ -492,7 +509,7 @@ define([], function(){
 	};
 	bind.get = get;
 	bind.Element = ElementBinding;
-	bind.Container = ContainerBinding;
+	bind.Container = ContainerExtension;
 	bind.Binding = Binding;
 
 

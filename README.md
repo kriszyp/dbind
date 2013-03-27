@@ -133,6 +133,38 @@ Functions that pre-exist in target bindable object should have `dojo/aspect`'s `
 as the function is augmented in such manner.
 Extension can have `start()` method. If there is, it's called when it's applied to a bindable.
 
+# Snapshot
+
+With `dbind/Snapshot` module, we can let a bindable start keeping its snapshot, by:
+
+```javascript
+require(["dbind/bind", "dbind/Snapshot"], function(bind, Snapshot){
+	bind(something).to(new Snapshot());
+});
+```
+
+A snapshot is another kind of bindable object that keeps the value of upstream source
+(which (for snapshot) is, the bindable object associated with the snapshot)
+of the time snapshot is created. A snapshot won't be updated
+(even if there are changes in value of upstream source) until application requests
+that the snapshot should be in sync with its upstream source, by calling the snapshot's `pull()` method
+(or upstream source's `push()` method).
+
+```javascript
+require(["dbind/bind", "dbind/Snapshot"], function(bind, Snapshot){
+	var binding = bind("Foo").to(new Snapshot()); // A binding is created with a snapshot
+	binding.is("Bar"); // The value is changed to "Bar"
+	binding.pull(); // The value is changed back to "Foo"
+	binding.is("Bar"); // The value is changed again to "Bar"
+	binding.push(); // Save the value
+	binding.is("") // The value becomes an empty string
+	binding.pull(); // The value is changed back to "Bar" (The saved value)
+});
+```
+
+Snapshot will be useful for creating UI with a feature to revert to its earlier data, or checking
+if there is a change in a bindable object since a point in time (by calling its `dirty()` method).
+
 # dbind Interfaces
 
 dbind relies on several interfaces for connecting components. You can interact with these objects

@@ -127,12 +127,14 @@ define([], function(){
 			if(this.source){
 				this.source.put(value);
 			}
-			value._binding = this;
-			this.own({
-				remove: function(){
-					(value || {})._binding = null;
-				}
-			});
+			if(value){
+				value._binding = this;
+				this.own({
+					remove: function(){
+						(value || {})._binding = null;
+					}
+				});
+			}
 			this.is(value);
 		},
 		is: function(value){
@@ -154,7 +156,10 @@ define([], function(){
 		},
 		keys: function(callback){
 			if(this.source){
-				this.source.keys(callback);
+				var self = this;
+				this.source.keys(function(i){
+					callback(i, self.get(i));
+				});
 			}
 			for(var i in this.value){
 				if(i.charAt(0) != '_'){
@@ -172,8 +177,13 @@ define([], function(){
 			this.resettable(source.receive(function(value){
 				self.is(value);
 			}));
+			return this.enumerate();
+		},
+		enumerate: function(){
+			var self = this,
+				source = this.source;
 			for(var i in this){
-				if(i.charAt(0) == '_'){
+				if(/^_.+/.test(i)){
 					i = i.slice(1);
 					var child = self.get(i);
 					var sourceChild = source.get(i);
@@ -328,7 +338,7 @@ define([], function(){
 		Binding.prototype.to.apply(this, arguments);
 		source = this.source;
 		var element = this.element;
-		if(element.tagName == "FORM"){
+		if(this.container || element.tagName == "FORM"){
 			var binding = this;
 			function findInputs(tag){
 				var inputs = element.getElementsByTagName(tag);

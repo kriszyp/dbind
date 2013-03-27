@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Test snapshot</title>
+		<style type="text/css">
+			@import "../../dojo/resources/dojo.css";
+			.container {
+				padding: 8px;
+			}
+			.caption {
+				display: inline-block;
+				width: 8ex;
+			}
+		</style>
+		<script type="text/javascript" src="../../dojo/dojo.js" 
+			data-dojo-config="async: 1"></script>
+		<script type="text/javascript">
+			require([
+				"dbind/bind",
+				"dbind/Snapshot",
+				"dojo/on",
+				"dojo/domReady!"
+			], function(bind, Snapshot, on){
+				var data = {
+					Group: "Engineer",
+					First: "Anne",
+					Last: "Ackerman",
+					Location: "NY",
+					Office: "1S76",
+					Email: "a.a@test.com",
+					Tel: "123-764-8237",
+					Fax: "123-764-8228"
+				};
+				bind(document.getElementById("mastergroup")).to(new bind.Container()).to(bind(data, new Snapshot()));
+				bind(document.getElementById("commitresetgroup")).to(new bind.Container()).to(bind(data));
+				bind(document.getElementById("savecancelgroup")).to(new bind.Container()).to(bind(data).snapshot());
+				on(document.getElementById("commit"), "click", function(){
+					bind(data).push();
+				});
+				on(document.getElementById("reset"), "click", function(){
+					bind(data).pull();
+				});
+				on(document.getElementById("save"), "click", function(){
+					bind(data).pull();
+				});
+				on(document.getElementById("cancel"), "click", function(){
+					bind(data).push();
+				});
+			});
+		</script>
+	</head>
+	<body>
+		<h1 class="container">Snapshot test (commit, reset, save, cancel)</h1>
+		<div class="container" id="mastergroup">
+			<h3>(Master data)</h3>
+			<div><span class="caption">Group:</span> <input type="text" name="Group" disabled></div>
+			<div><span class="caption">First:</span> <input type="text" name="First" disabled></div>
+			<div><span class="caption">Last:</span> <input type="text" name="Last" disabled></div>
+			<div><span class="caption">Location:</span> <input type="text" name="Location" disabled></div>
+			<div><span class="caption">Office:</span> <input type="text" name="Office" disabled></div>
+			<div><span class="caption">Email:</span> <input type="text" name="Email" disabled></div>
+			<div><span class="caption">Tel:</span> <input type="text" name="Tel" disabled></div>
+			<div><span class="caption">Fax:</span> <input type="text" name="Fax" disabled></div>
+		</div>
+		<div class="container" id="commitresetgroup">
+			<div><span class="caption">Group:</span> <input type="text" name="Group"></div>
+			<div><span class="caption">First:</span> <input type="text" name="First"></div>
+			<div><span class="caption">Last:</span> <input type="text" name="Last"></div>
+			<div><span class="caption">Location:</span> <input type="text" name="Location"></div>
+			<div><span class="caption">Office:</span> <input type="text" name="Office"></div>
+			<div><span class="caption">Email:</span> <input type="text" name="Email"></div>
+			<div><span class="caption">Tel:</span> <input type="text" name="Tel"></div>
+			<div><span class="caption">Fax:</span> <input type="text" name="Fax"></div>
+			<div>
+				<input id="commit" type="button" value="Commit">
+				<input id="reset" type="button" value="Reset">
+			</div>
+		</div>
+		<div class="container" id="savecancelgroup">
+			<div><span class="caption">Group:</span> <input type="text" name="Group"></div>
+			<div><span class="caption">First:</span> <input type="text" name="First"></div>
+			<div><span class="caption">Last:</span> <input type="text" name="Last"></div>
+			<div><span class="caption">Location:</span> <input type="text" name="Location"></div>
+			<div><span class="caption">Office:</span> <input type="text" name="Office"></div>
+			<div><span class="caption">Email:</span> <input type="text" name="Email"></div>
+			<div><span class="caption">Tel:</span> <input type="text" name="Tel"></div>
+			<div><span class="caption">Fax:</span> <input type="text" name="Fax"></div>
+			<div>
+				<input id="save" type="button" value="Save">
+				<input id="cancel" type="button" value="Cancel">
+			</div>
+		</div>
+	</body>
+</html>

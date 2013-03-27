@@ -12,7 +12,7 @@ define(['dbind/bind', 'dbind/Validator', 'put-selector/put'], function(bind, Val
 		
 		function ValidationTextBox(){
 			var mainElement = put('div');
-			var binding = new bind.Container(mainElement);
+			var binding = bind(mainElement, new bind.Container());
 			// the label
 			bind(put(mainElement, 'label')).to(binding.get('title'));
 			// the main value is bound to the input

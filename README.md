@@ -104,6 +104,67 @@ be updated with error message. This makes it easy to build coherent, manageable
 validated forms. The validation layer is distinct from the UI layer, and they can easily 
 be wired together for responsive validated forms and UIs.
 
+# Extension
+
+An extension is an object that augments a bindable object.
+An extension has `extension` property with `true` value, and can be used by:
+
+```javascript
+bind(something).to({
+	extension: true,
+	optionProperty: 0,
+	is: function(originalIs){ // Change to existing function should have dojo/aspect's around() format
+		// Do something before original is()...
+		originalIs.apply(this, arguments);
+		// Do something after original is()...
+	},
+	customFunction: function(){
+		// Do something...
+	},
+	start: function(){
+		this.customFunction(); // Call customMethod() when extension is applied to a bindable
+	}
+});
+```
+
+Regular properties in extension are mixed into target bindable object.
+Same thing happens for functions that are not in target bindable object, too.
+Functions that pre-exist in target bindable object should have `dojo/aspect`'s `around()` format,
+as the function is augmented in such manner.
+Extension can have `start()` method. If there is, it's called when it's applied to a bindable.
+
+# Snapshot
+
+With `dbind/Snapshot` module, we can let a bindable start keeping its snapshot, by:
+
+```javascript
+require(["dbind/bind", "dbind/Snapshot"], function(bind, Snapshot){
+	bind(something).to(new Snapshot());
+});
+```
+
+A snapshot is another kind of bindable object that keeps the value of upstream source
+(which (for snapshot) is, the bindable object associated with the snapshot)
+of the time snapshot is created. A snapshot won't be updated
+(even if there are changes in value of upstream source) until application requests
+that the snapshot should be in sync with its upstream source, by calling the snapshot's `pull()` method
+(or upstream source's `push()` method).
+
+```javascript
+require(["dbind/bind", "dbind/Snapshot"], function(bind, Snapshot){
+	var binding = bind("Foo").to(new Snapshot()); // A binding is created with a snapshot
+	binding.is("Bar"); // The value is changed to "Bar"
+	binding.pull(); // The value is changed back to "Foo"
+	binding.is("Bar"); // The value is changed again to "Bar"
+	binding.push(); // Save the value
+	binding.is("") // The value becomes an empty string
+	binding.pull(); // The value is changed back to "Bar" (The saved value)
+});
+```
+
+Snapshot will be useful for creating UI with a feature to revert to its earlier data, or checking
+if there is a change in a bindable object since a point in time (by calling its `dirty()` method).
+
 # dbind Interfaces
 
 dbind relies on several interfaces for connecting components. You can interact with these objects
@@ -144,6 +205,22 @@ the following methods:
 * get(property, callback) - Shorthand for get(property).then(callback).
 
 * set(property, value) - Shorthand for get(property).put(value).
+
+Some bindable objects may have shorter lifecycle than others. The following methods can be used to
+make sure bindable object that has finished its lifecycle no longer affects other bindable objects:
+
+* `remove()` - Marks this object as it finished its lifecycle, and cleans up the binding to the
+source object as well as its child bindable objects.
+
+* `reset()` - An internal method, typically called from `to()`, that cleans up the (earlier) binding to
+the source object, as well as the child objects' (earlier) binding to the children of source object
+(if they were bound by the same `to()` call).
+
+* `own(handle, handle, ...)` - An internal method to let `remove()` method call the cleanup method of
+the given handles.
+
+* `resettable(handle, handle, ...)` - An internal method to let `reset()` method call the cleanup
+method of the given handles.
 
 # Composition of Binding-Driven Components
 

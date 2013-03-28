@@ -316,13 +316,12 @@ define([], function(){
 		source = this.source;
 		var element = this.element;
 		if(element.tagName == "FORM"){
-			var binding = this;
 			function findInputs(tag){
 				var inputs = element.getElementsByTagName(tag);
 				for(var i = 0; i < inputs.length; i++){
 					var input = inputs[i];
 					if(input.name){
-						bind(input, binding.get(input.name));
+						bind(input, source.get(input.name));
 					}
 				}
 			}
@@ -489,8 +488,18 @@ define([], function(){
 				return new PropertyBinding(object, key);
 			}
 		}
-	};
+	}
+	function remove(element){
+		for(var list = [element].concat([].slice.call(element.getElementsByTagName("*"), 0)), i = 0, l = list.length; i < l; ++i){
+			if(list[i]._binding){
+				list[i]._binding.remove();
+			}
+		}
+	}
+
 	bind.get = get;
+	bind.createOwnFunc = createOwnFunc;
+	bind.remove = remove;
 	bind.Element = ElementBinding;
 	bind.Container = ContainerBinding;
 	bind.Binding = Binding;

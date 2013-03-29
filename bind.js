@@ -1,4 +1,6 @@
 define([], function(){
+	function empty(){}
+
 	function on(node, event, callback){
 		var addEventListener = !!node.addEventListener;
 		node[addEventListener ? "addEventListener" : "attachEvent"]((addEventListener ? "" : "on") + event, callback, false);
@@ -136,7 +138,8 @@ define([], function(){
 			this.is(value);
 		},
 		is: function(value){
-			if(value !== this.value){
+			var oldValue = this.value;
+			if(value !== oldValue){
 				this.value = value;
 				if(typeof this.value == "object"){
 					for(var i in value){
@@ -147,7 +150,7 @@ define([], function(){
 				}
 				if(this.callbacks){
 					for(var i = 0; i < this.callbacks.length; i++){
-						this.callbacks[i](value);
+						this.callbacks[i](value, oldValue);
 					}
 				}
 			}
@@ -244,7 +247,7 @@ define([], function(){
 			self.value = current;
 			if(old !== current){
 				for(var callback, callbacks = (self.callbacks || []).slice(); callback = callbacks.shift();){
-					callback(current);
+					callback(current, old);
 				}
 			}
 		}));
@@ -372,25 +375,76 @@ define([], function(){
 	};
 	function ArrayBinding(){
 		Binding.apply(this, arguments);
-	}
-	ArrayBinding.prototype = new Binding({});
-	ArrayBinding.prototype.getValue = function(callback){
-		var currentValues = [],
-			updates = 0;
-			length = this.value.length;
-		// watch all the items, and return a resulting array whenever an item is updated
-		for(var i = 0; i < length; i++){
-			(function(i, source){
-				when(source, function(value){
-					currentValues[i] = value;
-					updates++;
-					if(updates >= length){
-						callback(currentValues);
+		var started,
+			self = this,
+			value = self.value, // this.value at this stage is given list at initialization, which has source bindings and/or initial values,
+			length = value.length,
+			updateCallbacks = [function(value){
+				self.is(value);
+			}];
+		delete self.value; // this.value after here are current values
+		function start(){
+			if(!started){
+				var updates = 0,
+					currentValues = [];
+				function watchItems(i, source){
+					// If the item (source) is a binding, when() returns a handle that should be cleaned up when ArrayBinding's lifecycle ends
+					(source.receive ? self.own : empty).call(self, when(source, function(value){
+						currentValues[i] = value;
+						updates++;
+						if(updates >= length){
+							for(var callback, callbacks = updateCallbacks.slice(); callback = callbacks.shift();){
+								callback(currentValues);
+							}
+						}
+					}));
+				}
+				// watch all the items, and return a resulting array whenever an item is updated
+				for(var i = 0; i < length; i++){
+					watchItems(i, value[i]);
+				}
+				started = true;
+			}
+		}
+		this.receive = function(callback){
+			start();
+			Binding.prototype.receive.call(this, callback);
+		};
+		this.getValue = function(callback){
+			start();
+			if(this.hasOwnProperty("value")){
+				callback(this.value);
+			}else{
+				var got;
+				updateCallbacks.unshift(function(value){ // Should run before this.is() runs
+					if(!got){
+						callback(value);
+						got = true;
 					}
 				});
-			})(i, this.value[i]);
-		}
+			}
+
+		};
 	}
+	ArrayBinding.prototype = new Binding({});
+	ArrayBinding.prototype.is = function(value){
+		var differs,
+			oldValues = this.value;
+		for(var i = 0, l = value.length; i < l; ++i){
+			if(value[i] !== oldValues[i]){
+				differs = true;
+				break;
+			}
+		}
+		if(differs){
+			this.value = value.slice();
+			if(this.callbacks){
+				for(var callbacks = this.callbacks.slice(), i = 0, l = callbacks.length; i < l; ++i){
+					callbacks[i](value, oldValues);
+				}
+			}
+		}
+	};
 	function PropertyBinding(object, name){
 		this.object = object;
 		this.name = name;

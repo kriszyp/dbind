@@ -126,11 +126,9 @@ objects that are also reactive. A reactive object represents a value that may ch
 over time. The reactive object has a value at any given point in time, and may change
 to different values over time. It has the following methods:
 
-* then(callback) - This is called to get the value of the source object, both now and in the 
-future. A function should be provided, and will be called with the current value of the
-source object, and called again each time it changes in the future. It is worth noting
-that a source object that is constant (value doesn't change) is the same as a promise,
-and can be provided to consumers that expect a promise.
+* receive(callback) - This is called to get the value of the source object, both now and in the 
+future. A function should be provided, and will be called with the current/old values of the
+source object, and called again each time it changes in the future.
  
 * put(value) - This is called to change the value of the source object from an upstream
 target component. This may be rejected.
@@ -141,7 +139,7 @@ the following methods:
 
 * get(property) - Returns a reactive object for the given property.
 
-* get(property, callback) - Shorthand for get(property).then(callback).
+* get(property, callback) - Shorthand for get(property).receive(callback).
 
 * set(property, value) - Shorthand for get(property).put(value).
 

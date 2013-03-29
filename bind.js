@@ -1,9 +1,81 @@
 define([], function(){
+	function on(node, event, callback){
+		var addEventListener = !!node.addEventListener;
+		node[addEventListener ? "addEventListener" : "attachEvent"]((addEventListener ? "" : "on") + event, callback, false);
+		var h = {
+			remove: function(){
+				h && node[addEventListener ? "removeEventListener" : "detachEvent"](event, callback, false);
+				return h = null;
+			}
+		};
+		return h;
+	}
+
+	function around(target, methodName, advice){
+		var original = target[methodName],
+			dispatcher = target[methodName] = function(){
+				if(advice){
+					advice.call(target, original, arguments);
+				}
+			};
+		dispatcher.reconnect = function(to){
+			if(original = to){
+				to.next = dispatcher;
+			}
+		};
+		if(original){
+			original.next = dispatcher;
+		}
+		return {
+			remove: function(){
+				var next = (dispatcher || {}).next;
+				if(next){
+					next.reconnect(original);
+				}else if(target[methodName] == dispatcher && (target[methodName] = original)){
+					original.next = next;
+				}
+				return target = advice = original = dispatcher = null;
+			}
+		};
+	}
+
+	function createOwnFunc(method){
+		function own(){
+			for(var i = 0, l = arguments.length; i < l; ++i){
+				(function(h){
+					var destroyMethodName = typeof h != "object" ? "" :
+						method && (method in h) ? method :
+						"destroyRecursive" in h ? "destroyRecursive" : // For dijit/_WidgetBase
+						"destroy" in h ? "destroy" : // For dijit/Destroyable
+						"remove" in h ? "remove" :
+						"";
+					if(destroyMethodName){
+						var odh = around(this, method || "destroy", function(original, args){
+							h[destroyMethodName]();
+							original.apply(this, args);
+						}), hdh = around(h, destroyMethodName, function(original, args){
+							original.apply(this, args);
+							odh.remove();
+							hdh.remove();
+						});
+					}
+				}).call(this, arguments[i]);
+			}
+			return arguments;
+		}
+		return own;
+	}
+
 	// A basic binding to value, our base class
 	function Binding(value){
 		this.value= value;
 		if(value){
 			value._binding = this;
+			this.own({
+				remove: function(){
+					(value || {})._binding = null;
+				}
+			});
 		}
 	}
 	Binding.prototype = {
@@ -25,6 +97,15 @@ define([], function(){
 					}
 				});
 			}
+			return {
+				remove: function(){
+					for(var i = callbacks.length - 1; i >= 0; --i){
+						if(callbacks[i] == callback){
+							callbacks.splice(i, 1);
+						}
+					}
+				}
+			};
 		},
 		getValue: function(callback){
 			if(this.hasOwnProperty("value")){
@@ -34,9 +115,9 @@ define([], function(){
 		get: function(key, callback){
 			// use an existing child/property if it exists
 			var value, child = this['_' + key] || 
-				(this['_' + key] = this.hasOwnProperty("value") && typeof this.value == "object" ?
+				(this['_' + key] = this.own(this.hasOwnProperty("value") && typeof this.value == "object" ?
 					(value = this.value[key]) && typeof value != "object" ? new PropertyBinding(this.value, key) :
-						convertToBindable(value) : new Binding());
+						convertToBindable(value) : new Binding())[0]);
 			if(callback){
 				return child.receive(callback);
 			}
@@ -47,6 +128,11 @@ define([], function(){
 				this.source.put(value);
 			}
 			value._binding = this;
+			this.own({
+				remove: function(){
+					(value || {})._binding = null;
+				}
+			});
 			this.is(value);
 		},
 		is: function(value){
@@ -76,15 +162,16 @@ define([], function(){
 				}			}
 		},
 		to: function(source, property){
+			this.reset();
 			source = convertToBindable(source);
 			if(property){
 				source = source.get(property);
 			}
 			var self = this;
 			this.source = source;
-			source.receive(function(value){
+			this.resettable(source.receive(function(value){
 				self.is(value);
-			});
+			}));
 			for(var i in this){
 				if(i.charAt(0) == '_'){
 					i = i.slice(1);
@@ -104,30 +191,42 @@ define([], function(){
 				}
 			});
 			return this;
+		},
+		own: createOwnFunc(),
+		resettable: createOwnFunc("reset"),
+		reset: function(){},
+		remove: function(){
+			this.reset();
+			this.destroyed = true;
 		}
 	};
 	// StatefulBinding is used for binding to Stateful objects, particularly Dijit widgets
 	function StatefulBinding(stateful){
 		this.stateful = stateful;
 		stateful._binding = this;
+		this.own({
+			remove: function(){
+				(stateful || {})._binding = null;
+			}
+		});
 	}
 	StatefulBinding.prototype = new Binding({}); 
 	StatefulBinding.prototype.to = function(source){
 		Binding.prototype.to.apply(this, arguments);
 		source = this.source;
 		var stateful = this.stateful;
-		source.receive(function(value){
+		this.resettable(source.receive(function(value){
 			stateful.set('value', value);
-		});
-		stateful.watch('value', function(property, oldValue, value){
+		}));
+		this.resettable(stateful.watch('value', function(property, oldValue, value){
 			if(oldValue !== value){
 				source.put(value);
 			}
-		});
+		}));
 		return this;
 	};
 	StatefulBinding.prototype.get = function(key, callback){
-		return this['_' + key] || (this['_' + key] = new StatefulPropertyBinding(this.stateful, key));
+		return this['_' + key] || (this['_' + key] = this.own(new StatefulPropertyBinding(this.stateful, key))[0]);
 	};
 	StatefulBinding.prototype.keys = function(callback){
 		for(var i in this.stateful){
@@ -140,20 +239,19 @@ define([], function(){
 	function StatefulPropertyBinding(stateful, name){
 		this.stateful = stateful;
 		this.name = name;
+		var self = this;
+		this.own(stateful.watch(name, function(name, old, current){
+			self.value = current;
+			if(old !== current){
+				for(var callback, callbacks = (self.callbacks || []).slice(); callback = callbacks.shift();){
+					callback(current);
+				}
+			}
+		}));
 	}
 	StatefulPropertyBinding.prototype = new Binding;
 	StatefulPropertyBinding.prototype.getValue = function(callback){
-		// get the value of this property
-		var stateful = this.stateful,
-			name = this.name;
-		// get the current value
-		callback(stateful.get(name));
-		// watch for changes
-		stateful.watch(name, function(name, oldValue, newValue){
-			if(oldValue !== newValue){
-				callback(newValue);
-			}
-		});
+		callback(this.stateful.get(this.name));
 	};
 	StatefulPropertyBinding.prototype.is = function(value){
 		// don't go through setters, it is bubbling up through the source
@@ -164,11 +262,26 @@ define([], function(){
 		// put a value, go through setter
 		this.stateful.set(this.name, value);
 	}
+	StatefulPropertyBinding.prototype.to = function(source, property){
+		Binding.prototype.to.call(this, source, property);
+		var source = this.source;
+		this.resettable(this.stateful.watch(this.name, function(name, old, current){
+			if(old !== current){
+				source.put(current);
+			}
+		}));
+		return this;
+	};
 
 	function ElementBinding(element, container){
 		this.element= element;
 		this.container = container;
 		element._binding = this;
+		this.own({
+			remove: function(){
+				(element || {})._binding = null;
+			}
+		});
 	}
 	function ContainerBinding(element){
 		return new ElementBinding(element, true);
@@ -203,21 +316,21 @@ define([], function(){
 		source = this.source;
 		var element = this.element;
 		if(element.tagName == "FORM"){
-			var binding = this;
 			function findInputs(tag){
 				var inputs = element.getElementsByTagName(tag);
 				for(var i = 0; i < inputs.length; i++){
 					var input = inputs[i];
 					if(input.name){
-						bind(input, binding.get(input.name));
+						bind(input, source.get(input.name));
 					}
 				}
 			}
 			findInputs("input");
 			findInputs("select");
 		}else if(element.tagName in inputLike){
-			var value, binding = this,
-				onchange = element.onchange = function(){
+			var value,
+				binding = this;
+			function onChange(){
 				if(element.type == "radio"){
 					if(element.checked){
 						value = element.value;
@@ -228,26 +341,33 @@ define([], function(){
 					value = element.type == "checkbox" ? element.checked : element.value;
 				}
 				source.put(typeof binding.oldValue == "number" && !isNaN(value) ? +value : value);
-			};
+			}
+			this.resettable(on(element, "change", onChange));
 			if(element.getAttribute('data-continuous')){
-				element.onkeyup = onchange;
+				this.resettable(on(element, "keyup", onChange));
 			}
 		}
 		return this;
 	}
 	ElementBinding.prototype.receive = function(callback){
-		var element = this.element;
+		var h,
+			element = this.element;
 		if(this.container){
 			return Binding.prototype.receive.call(this, callback);
 		}
 		if("value" in element){
 			callback(element.value);
-			element.onchange = function(){
+			h = on(element, "change", function(){
 				callback(element.value);
-			};
+			});
 		}else{
 			callback(element.innerText);
 		}
+		return {
+			remove: function(){
+				h && h.remove();
+			}
+		};
 	};
 	function ArrayBinding(){
 		Binding.apply(this, arguments);
@@ -296,10 +416,10 @@ define([], function(){
 			}
 		},
 		get: function(key){
-			return this[key] || (this[key] = new Binding('None'));
+			return this[key] || (this[key] = this.own(new Binding('None'))[0]);
 		},
 		put: function(value){
-			this.source.put(this.reverseFunc(value));
+			this.source && this.reverseFunc && this.source.put(this.reverseFunc(value));
 		},
 		is: function(){},
 		to: function(source){
@@ -368,8 +488,18 @@ define([], function(){
 				return new PropertyBinding(object, key);
 			}
 		}
-	};
+	}
+	function remove(element){
+		for(var list = [element].concat([].slice.call(element.getElementsByTagName("*"), 0)), i = 0, l = list.length; i < l; ++i){
+			if(list[i]._binding){
+				list[i]._binding.remove();
+			}
+		}
+	}
+
 	bind.get = get;
+	bind.createOwnFunc = createOwnFunc;
+	bind.remove = remove;
 	bind.Element = ElementBinding;
 	bind.Container = ContainerBinding;
 	bind.Binding = Binding;

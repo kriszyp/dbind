@@ -104,6 +104,27 @@ be updated with error message. This makes it easy to build coherent, manageable
 validated forms. The validation layer is distinct from the UI layer, and they can easily 
 be wired together for responsive validated forms and UIs.
 
+# Repeating UI
+
+By importing `dbind/forEach` module (which returns the same object as `dbind/bind`),
+you can create repeating UI from array:
+
+```javascript
+require(['dbind/forEach'], function(bind){
+	var a = ['foo', 'bar'];
+	bind(anElement).forEach(a, {
+		createChild: function(entry){
+			var element = document.createElement("div");
+			element.innerText = entry;
+			return element;
+		}
+	});
+});
+```
+
+If the array implements `observe(function(idx, removals, adds){ ... })` interface upon removals/adds of array
+elements (splice), the UI created in above way responds to such removals/adds.
+
 # dbind Interfaces
 
 dbind relies on several interfaces for connecting components. You can interact with these objects
@@ -144,6 +165,22 @@ the following methods:
 * get(property, callback) - Shorthand for get(property).then(callback).
 
 * set(property, value) - Shorthand for get(property).put(value).
+
+Some bindable objects may have shorter lifecycle than others. The following methods can be used to
+make sure bindable object that has finished its lifecycle no longer affects other bindable objects:
+
+* `remove()` - Marks this object as it finished its lifecycle, and cleans up the binding to the
+source object as well as its child bindable objects.
+
+* `reset()` - An internal method, typically called from `to()`, that cleans up the (earlier) binding to
+the source object, as well as the child objects' (earlier) binding to the children of source object
+(if they were bound by the same `to()` call).
+
+* `own(handle, handle, ...)` - An internal method to let `remove()` method call the cleanup method of
+the given handles.
+
+* `resettable(handle, handle, ...)` - An internal method to let `reset()` method call the cleanup
+method of the given handles.
 
 # Composition of Binding-Driven Components
 

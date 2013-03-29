@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Test forEach</title>
+		<style type="text/css">
+			@import "../../dojo/resources/dojo.css";
+		</style>
+		<script type="text/javascript" src="../../dojo/dojo.js" 
+			data-dojo-config="async: 1"></script>
+		<script type="text/javascript">
+			require([
+				"dbind/tests/testRepeatViewModel",
+				"dbind/forEach",
+				"dojo/on",
+				"dojo/domReady!"
+			], function(viewModel, bind, on){
+				bind(document.getElementById("container")).forEach(viewModel.collection, {
+					createChild: function(entry){
+						var div = document.createElement("div"),
+							form = document.createElement("form"),
+							checkbox = document.createElement("input"),
+							textbox = document.createElement("input"),
+							button = document.createElement("input");
+						checkbox.setAttribute("name", "finished");
+						checkbox.setAttribute("type", "checkbox");
+						textbox.setAttribute("name", "title");
+						textbox.setAttribute("type", "text");
+						button.setAttribute("type", "button");
+						button.setAttribute("value", "Remove");
+						on(button, "click", function(event){
+							viewModel.removeEntry.call(this, event, bind(event.target), bind(entry));
+						});
+						form.appendChild(checkbox);
+						form.appendChild(textbox);
+						form.appendChild(button);
+						div.appendChild(form);
+						bind(form).to(entry);
+						return div;
+					},
+					parent: viewModel
+				});
+				var form = document.getElementById("bottomarea");
+				bind(form).to(viewModel);
+				on(form.addButton, "click", function(event){
+					viewModel.addEntry.call(this, event, bind(event.target), viewModel);
+				});
+				bind(form.activeButton, "filterMode").to("active");
+				bind(form.finishedButton, "filterMode").to("finished");
+				for(var a = [form.allButton, form.activeButton, form.finishedButton], i = 0, l = a.length; i < l; ++i){
+					on(a[i], "click", function(event){
+						viewModel.filter.call(this, event, bind(event.target), viewModel);
+					});
+				}
+			});
+		</script>
+	</head>
+	<body class="claro">
+		<h2>Test forEach</h2>
+		<div id="container"></div>
+		<form id="bottomarea">
+			<div>
+				<input name="textToAdd" type="text">
+				<input name="addButton" type="button">
+			</div>
+			<div>
+				<input name="allButton" type="button">
+				<input name="activeButton" type="button">
+				<input name="finishedButton" type="button">
+			</div>
+		</form>
+	</body>
+</html>

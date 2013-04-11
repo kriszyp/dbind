@@ -255,7 +255,7 @@ define([], function(){
 	ArrayBinding.prototype = new Binding({});
 	ArrayBinding.prototype.getValue = function(callback){
 		var currentValues = [],
-			updates = 0;
+			updates = 0,
 			length = this.value.length;
 		// watch all the items, and return a resulting array whenever an item is updated
 		for(var i = 0; i < length; i++){

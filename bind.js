@@ -34,7 +34,7 @@ define([], function(){
 		get: function(key, callback){
 			// use an existing child/property if it exists
 			var value, child = this['_' + key] || 
-				(this['_' + key] = this.hasOwnProperty("value") && typeof this.value == "object" ?
+				(this['_' + key] = this.hasOwnProperty("value") && this.value && typeof this.value == "object" ?
 					(value = this.value[key]) && typeof value != "object" ? new PropertyBinding(this.value, key) :
 						convertToBindable(value) : new Binding());
 			if(callback){

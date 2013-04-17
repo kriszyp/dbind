@@ -291,7 +291,7 @@ define([], function(){
 			if(callback){
 				var func = this.func;
 				return this.source.receive(function(value){
-					callback(value != null && value.slice ? func.apply(this, value) : func(value));
+					callback(value != null && value.join ? func.apply(this, value) : func(value));
 				});
 			}
 		},

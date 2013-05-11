@@ -49,13 +49,18 @@ define([], function(){
 			value._binding = this;
 			this.is(value);
 		},
+		set: function(name, value){
+			this.get(name).put(value);
+		},
 		is: function(value){
 			if(value !== this.value){
 				this.value = value;
 				if(typeof this.value == "object"){
 					for(var i in value){
 						if(i.charAt(0) != '_'){
-							this.get(i).is(value[i]);
+							var property = this.get(i);
+							property.object = value;
+							property.is(value[i]);
 						}
 					}
 				}

@@ -1,7 +1,7 @@
 define(['dojo/when'], function(when){
 	// a navigation binding, that can receive and trigger data through the binding to control
 	// the navigation history
-	return function(target, options){
+	var navigation = function(target, options){
 		// provide a store and a prefix
 		options = options || {};
 		var store = options.store;
@@ -34,7 +34,7 @@ define(['dojo/when'], function(when){
 				location.pathname :
 				location.hash;
 			if(path.charAt(0) == '#'){
-				path = path.slice(1);
+				navigation.path = path = path.slice(1);
 			}
 			if(currentPath != path){
 				// only change if it matches or accepted prefixes
@@ -49,4 +49,5 @@ define(['dojo/when'], function(when){
 		}
 		return target;
 	};
+	return navigation;
 });

@@ -1,5 +1,5 @@
 {
-  "name": "xstyle",
+  "name": "dbind",
   "author": "Kris Zyp",
   "description": "Functional reactive data binding package that provides straightforward binding of data to components like form inputs, validation connectors, and more.",
   "licenses": [

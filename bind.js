@@ -35,6 +35,17 @@ define([], function(){
 					}
 				});
 			}
+
+			return {
+				remove: function(){
+					for(var i = 0; i < callbacks.length; ++i){
+						if(callback === callbacks[i]){
+							callbacks.splice(i, 1);
+							break;
+						}
+					}
+				}
+			};
 		},
 		getValue: function(callback){
 			// this method can be implemented to provide the current and future values

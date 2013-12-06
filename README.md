@@ -149,3 +149,7 @@ the following methods:
 
 TODO
 
+
+dbind is freely available under *either* the terms of the modified BSD license *or* the
+Academic Free License version 2.1. More details can be found in the [LICENSE](LICENSE).
+The dbind project follows the IP guidelines of Dojo foundation packages and all contributions require a Dojo CLA. 

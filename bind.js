@@ -119,7 +119,8 @@ define([], function(){
 			for(var i in this.value){
 				if(i.charAt(0) != '_'){
 					callback(i, this.get(i));
-				}			}
+				}
+			}
 		},
 		to: function(source, property){
 			// Connect this binding to another binding, such that any changes in the source
@@ -239,6 +240,8 @@ define([], function(){
 			}else{
 				element.value = value || "";
 			}
+		}else if(element.nodeType == 3){
+			element.nodeValue = value || "";
 		}else{
 			element.innerText = value || "";
 		}
@@ -301,6 +304,8 @@ define([], function(){
 			element.onchange = function(){
 				callback(element.value);
 			};
+		}else if(element.nodeType == 3){
+			callback(element.nodeValue);
 		}else{
 			callback(element.innerText);
 		}

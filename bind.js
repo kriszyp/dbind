@@ -264,7 +264,7 @@ define([], function(){
 				for(var i = 0; i < inputs.length; i++){
 					var input = inputs[i];
 					if(input.name){
-						bind(input, binding.get(input.name));
+						bind(input, source.get(input.name));
 					}
 				}
 			}

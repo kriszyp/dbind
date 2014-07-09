@@ -32,8 +32,8 @@ define(['dbind/bind', 'dbind/Validator', 'put-selector/put'], function(bind, Val
 		put(form, "div", "Discounted", "input[type=checkbox]", {name: "discounted"});
 		
 		var patternSelect = put(form, "div", "Pattern", "select[name=pattern]");
-		put(patternSelect, "option[value=[striped]", "Striped");
-		put(patternSelect, "option[value=[solid]", "Solid");
+		put(patternSelect, "option[value=striped]", "Striped");
+		put(patternSelect, "option[value=solid]", "Solid");
 		
 		var colorDiv = put(form, "div", "Color");
 		put(colorDiv, "div", "Red", "input[type=radio][value=red]", {name: "color"});
